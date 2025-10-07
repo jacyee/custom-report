@@ -41,8 +41,12 @@ const selectedSummaryDatatype = ref<string[]>([])
 const selectedThermalDatatype = ref<string[]>([])
 const selectedPowerDatatype = ref<string[]>([])
 const selectedCapacityDatatype = ref<string[]>([])
-const selectedCoolingDatatype = ref<string[]>([])
 const selectedDataResolution = ref<string[]>([])
+const selectedAggregation = ref<Record<string, string[]>>({})
+const dateRange = ref({
+  start: '',
+  end: ''
+})
 const sortBy = ref('name')
 const sortOrder = ref('asc')
 
@@ -58,7 +62,6 @@ const dropdownOpen = ref({
   thermalDatatype: false,
   powerDatatype: false,
   capacityDatatype: false,
-  coolingDatatype: false,
   dataResolution: false
 })
 
@@ -90,7 +93,25 @@ const filteredData = computed(() => {
     const matchesItemType = selectedItemType.value.length === 0 || (item.itemType && selectedItemType.value.includes(item.itemType))
     const matchesDataType = selectedDataType.value.length === 0 || (item.dataType && selectedDataType.value.includes(item.dataType))
     
-    return matchesSearch && matchesCustomer && matchesSite && matchesRoom && matchesCage && matchesItemType && matchesDataType
+    // Date range filtering
+    const matchesDateRange = () => {
+      if (!dateRange.value.start && !dateRange.value.end) return true
+      
+      const itemDate = new Date(item.date)
+      const startDate = dateRange.value.start ? new Date(dateRange.value.start) : null
+      const endDate = dateRange.value.end ? new Date(dateRange.value.end) : null
+      
+      if (startDate && endDate) {
+        return itemDate >= startDate && itemDate <= endDate
+      } else if (startDate) {
+        return itemDate >= startDate
+      } else if (endDate) {
+        return itemDate <= endDate
+      }
+      return true
+    }
+    
+    return matchesSearch && matchesCustomer && matchesSite && matchesRoom && matchesCage && matchesItemType && matchesDataType && matchesDateRange()
   })
 
   // Sort data
@@ -423,6 +444,7 @@ const linePath = computed(() => {
 
 const clearFilters = () => {
   searchTerm.value = ''
+  dateRange.value = { start: '', end: '' }
   selectedCustomer.value = []
   selectedSite.value = []
   selectedRoom.value = []
@@ -433,7 +455,6 @@ const clearFilters = () => {
   selectedThermalDatatype.value = []
   selectedPowerDatatype.value = []
   selectedCapacityDatatype.value = []
-  selectedCoolingDatatype.value = []
   selectedDataResolution.value = []
   sortBy.value = 'name'
   sortOrder.value = 'asc'
@@ -466,6 +487,96 @@ const getDropdownLabel = (type: string, selected: string[], allOptions: string[]
 const updateFilter = () => {
   // This method is called when checkboxes change
   // The reactive filtering will automatically update
+}
+
+const updateSummaryDatatypeSelection = () => {
+  // When datatypes are selected/deselected, set default aggregation to ['Avg'] for new ones
+  selectedSummaryDatatype.value.forEach(datatype => {
+    if (!selectedAggregation.value[datatype] || selectedAggregation.value[datatype].length === 0) {
+      selectedAggregation.value[datatype] = ['Avg']
+    }
+  })
+  
+  // Remove aggregations for deselected datatypes
+  Object.keys(selectedAggregation.value).forEach(datatype => {
+    if (!selectedSummaryDatatype.value.includes(datatype)) {
+      delete selectedAggregation.value[datatype]
+    }
+  })
+}
+
+const updateDatatypeAggregation = (datatype: string, aggregation: string, isChecked: boolean) => {
+  if (!selectedAggregation.value[datatype]) {
+    selectedAggregation.value[datatype] = []
+  }
+  
+  if (isChecked) {
+    // Add aggregation if not already present
+    if (!selectedAggregation.value[datatype].includes(aggregation)) {
+      selectedAggregation.value[datatype].push(aggregation)
+    }
+  } else {
+    // Remove aggregation
+    selectedAggregation.value[datatype] = selectedAggregation.value[datatype].filter(agg => agg !== aggregation)
+  }
+}
+
+const getDatatypeValue = (datatype: string, aggregation: string) => {
+  // Mock data generation based on datatype and aggregation
+  const mockData = {
+    'Power': { Max: '15.2kW', Min: '8.1kW', Avg: '11.5kW' },
+    'Temperature': { Max: maxTemperature.value + '°C', Min: minTempRack.value?.minTemp + '°C' || '0.0°C', Avg: averageTemperature.value + '°C' },
+    'Humidity': { Max: '65%', Min: '35%', Avg: '50%' },
+    'Airflow': { Max: '850 CFM', Min: '420 CFM', Avg: '635 CFM' },
+    'Utilization': { Max: '92%', Min: '18%', Avg: '68%' },
+    'Dew Point': { Max: '18.5°C', Min: '12.2°C', Avg: '15.3°C' },
+    'Voltage': { Max: '240V', Min: '220V', Avg: '230V' },
+    'Amps': { Max: '45A', Min: '22A', Avg: '33A' },
+    'Outlet T': { Max: '25.8°C', Min: '18.2°C', Avg: '22.1°C' }
+  }
+  
+  return mockData[datatype as keyof typeof mockData]?.[aggregation as keyof typeof mockData.Power] || 'N/A'
+}
+
+const getDatatypeRack = (datatype: string, aggregation: string) => {
+  // Return rack labels based on datatype and aggregation
+  if (datatype === 'Temperature') {
+    if (aggregation === 'Max') return maxTempRack.value?.rackLabel || 'N/A'
+    if (aggregation === 'Min') return minTempRack.value?.rackLabel || 'N/A'
+    return '-'
+  }
+  
+  // Mock rack assignments for other datatypes
+  const mockRacks = {
+    'Power': { Max: 'Rack A-01', Min: 'Rack C-02', Avg: '-' },
+    'Humidity': { Max: 'Rack B-01', Min: 'Rack D-02', Avg: '-' },
+    'Airflow': { Max: 'Rack A-02', Min: 'Rack C-01', Avg: '-' },
+    'Utilization': { Max: 'Rack B-02', Min: 'Rack D-01', Avg: '-' },
+    'Dew Point': { Max: 'Rack A-01', Min: 'Rack C-02', Avg: '-' },
+    'Voltage': { Max: 'Rack B-01', Min: 'Rack D-02', Avg: '-' },
+    'Amps': { Max: 'Rack A-02', Min: 'Rack C-01', Avg: '-' },
+    'Outlet T': { Max: 'Rack B-02', Min: 'Rack D-01', Avg: '-' }
+  }
+  
+  return mockRacks[datatype as keyof typeof mockRacks]?.[aggregation as keyof typeof mockRacks.Power] || '-'
+}
+
+const getMultiAggregationValues = (datatype: string) => {
+  const aggregations = selectedAggregation.value[datatype] || ['Avg']
+  const values = aggregations.map(agg => {
+    const value = getDatatypeValue(datatype, agg)
+    return `${agg}: ${value}`
+  })
+  return values.join('<br>')
+}
+
+const getMultiAggregationRacks = (datatype: string) => {
+  const aggregations = selectedAggregation.value[datatype] || ['Avg']
+  const racks = aggregations.map(agg => {
+    const rack = getDatatypeRack(datatype, agg)
+    return rack === '-' ? `${agg}: -` : `${agg}: ${rack}`
+  })
+  return racks.join('<br>')
 }
 
 // Export functionality
@@ -917,6 +1028,30 @@ const getCapacityStatusClass = (status: string) => {
           </div>
           
           <div class="filter-group">
+            <label>Date Range</label>
+            <div class="date-range-container">
+              <div class="date-input-group">
+                <label for="start-date" class="date-label">From</label>
+                <input
+                  id="start-date"
+                  v-model="dateRange.start"
+                  type="date"
+                  class="date-input"
+                />
+              </div>
+              <div class="date-input-group">
+                <label for="end-date" class="date-label">To</label>
+                <input
+                  id="end-date"
+                  v-model="dateRange.end"
+                  type="date"
+                  class="date-input"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div class="filter-group">
             <label>Customer</label>
             <div class="dropdown-checkbox">
               <button 
@@ -1059,10 +1194,28 @@ const getCapacityStatusClass = (status: string) => {
                     type="checkbox" 
                     :value="option" 
                     v-model="selectedSummaryDatatype"
-                    @change="updateFilter"
+                    @change="updateSummaryDatatypeSelection"
                   />
                   <span class="checkbox-label">{{ option }}</span>
                 </label>
+              </div>
+            </div>
+            
+            <!-- Selected Datatypes with Aggregation Options -->
+            <div v-if="selectedSummaryDatatype.length > 0" class="selected-datatypes-container">
+              <div class="selected-datatype-item" v-for="datatype in selectedSummaryDatatype" :key="datatype">
+                <div class="datatype-label">{{ datatype }}</div>
+                <div class="aggregation-options">
+                  <label v-for="agg in ['Max', 'Min', 'Avg']" :key="agg" class="aggregation-option">
+                    <input 
+                      type="checkbox" 
+                      :value="agg"
+                      :checked="selectedAggregation[datatype]?.includes(agg) || false"
+                      @change="updateDatatypeAggregation(datatype, agg, ($event.target as HTMLInputElement)?.checked || false)"
+                    />
+                    <span class="aggregation-label">{{ agg }}</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -1079,7 +1232,7 @@ const getCapacityStatusClass = (status: string) => {
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.thermalDatatype" class="dropdown-content">
-                <label v-for="option in ['Power', 'Temperature', 'Humidity', 'Airflow', 'Utilization', 'Dew Point', 'Voltage', 'Amps', 'Outlet T']" :key="option" class="checkbox-item">
+                <label v-for="option in ['Temperature', 'Humidity', 'Dew Point', 'Outlet T']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -1142,30 +1295,6 @@ const getCapacityStatusClass = (status: string) => {
             </div>
           </div>
           
-          <div class="filter-group">
-            <label>Cooling Datatype (up to 5)</label>
-            <div class="dropdown-checkbox">
-              <button 
-                @click="toggleDropdown('coolingDatatype')" 
-                class="dropdown-button"
-                :class="{ 'active': dropdownOpen.coolingDatatype }"
-              >
-                {{ getDropdownLabel('coolingDatatype', selectedCoolingDatatype, ['Power', 'Temperature', 'Humidity', 'Airflow', 'Utilization', 'Dew Point', 'Voltage', 'Amps', 'Outlet T']) }}
-                <span class="dropdown-arrow">▼</span>
-              </button>
-              <div v-if="dropdownOpen.coolingDatatype" class="dropdown-content">
-                <label v-for="option in ['Power', 'Temperature', 'Humidity', 'Airflow', 'Utilization', 'Dew Point', 'Voltage', 'Amps', 'Outlet T']" :key="option" class="checkbox-item">
-                  <input 
-                    type="checkbox" 
-                    :value="option" 
-                    v-model="selectedCoolingDatatype"
-                    @change="updateFilter"
-                  />
-                  <span class="checkbox-label">{{ option }}</span>
-                </label>
-              </div>
-            </div>
-          </div>
           
           <div class="filter-group">
             <label>Data Resolution</label>
@@ -1337,37 +1466,44 @@ const getCapacityStatusClass = (status: string) => {
 
           <!-- Summary Stats Table -->
           <div class="stats-table-section">
-            <h3 class="stats-table-title">Cage Performance Summary</h3>
+            <h3 class="stats-table-title">Group Performance Summary</h3>
             <div class="stats-table-container">
               <table class="stats-table">
-                <tbody>
+                <thead>
                   <tr>
+                    <th class="stat-header-label">Metric</th>
+                    <th class="stat-header-value">Value</th>
+                    <th class="stat-header-rack">Rack</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Dynamic rows based on selected datatypes with multiple aggregations in single cell -->
+                  <tr v-for="datatype in selectedSummaryDatatype" :key="datatype">
+                    <td class="stat-label">{{ datatype }}</td>
+                    <td class="stat-value stat-multi-value" v-html="getMultiAggregationValues(datatype)"></td>
+                    <td class="stat-rack stat-multi-rack" v-html="getMultiAggregationRacks(datatype)"></td>
+                  </tr>
+                  
+                  <!-- Static rows for general info -->
+                  <tr v-if="selectedSummaryDatatype.length === 0">
                     <td class="stat-label">Average Temperature</td>
                     <td class="stat-value">{{ averageTemperature }}°C</td>
+                    <td class="stat-rack">-</td>
                   </tr>
-                  <tr>
+                  <tr v-if="selectedSummaryDatatype.length === 0">
                     <td class="stat-label">Max Temperature</td>
                     <td class="stat-value">{{ maxTemperature }}°C</td>
+                    <td class="stat-rack">{{ maxTempRack?.rackLabel || 'N/A' }}</td>
                   </tr>
-                  <tr>
+                  <tr v-if="selectedSummaryDatatype.length === 0">
                     <td class="stat-label">Min Temperature</td>
                     <td class="stat-value">{{ minTempRack?.minTemp || '0.0' }}°C</td>
-                  </tr>
-                  <tr>
-                    <td class="stat-label">Max Group Power</td>
-                    <td class="stat-value">{{ powerStats.peak.toFixed(1) }}kW</td>
-                  </tr>
-                  <tr>
-                    <td class="stat-label">Avg Group Power</td>
-                    <td class="stat-value">{{ powerStats.average.toFixed(1) }}kW</td>
-                  </tr>
-                  <tr>
-                    <td class="stat-label">Average RH</td>
-                    <td class="stat-value">50%</td>
+                    <td class="stat-rack">{{ minTempRack?.rackLabel || 'N/A' }}</td>
                   </tr>
                   <tr>
                     <td class="stat-label">Number of Racks</td>
                     <td class="stat-value">{{ powerStats.rackCount }}</td>
+                    <td class="stat-rack">-</td>
                   </tr>
                 </tbody>
               </table>
@@ -2238,9 +2374,42 @@ const getCapacityStatusClass = (status: string) => {
   border-bottom: none;
 }
 
+.stats-table th {
+  padding: 0.75rem 0;
+  font-size: 0.875rem;
+  border-bottom: 2px solid #475569;
+}
+
 .stats-table td {
   padding: 0.75rem 0;
   font-size: 0.875rem;
+}
+
+.stat-header-label {
+  color: #94a3b8;
+  font-weight: 600;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+}
+
+.stat-header-value {
+  color: #94a3b8;
+  font-weight: 600;
+  text-align: right;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+}
+
+.stat-header-rack {
+  color: #94a3b8;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
 }
 
 .stat-label {
@@ -2253,6 +2422,26 @@ const getCapacityStatusClass = (status: string) => {
   color: #f8fafc;
   font-weight: 600;
   text-align: right;
+}
+
+.stat-rack {
+  color: #60a5fa;
+  font-weight: 500;
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.stat-multi-value {
+  text-align: left;
+  line-height: 1.6;
+  padding: 0.75rem 0.5rem;
+}
+
+.stat-multi-rack {
+  text-align: left;
+  line-height: 1.6;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.75rem;
 }
 
 .tabbed-tables-container {
@@ -2537,6 +2726,70 @@ const getCapacityStatusClass = (status: string) => {
   font-size: 0.875rem;
 }
 
+.dropdown-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.dropdown-row .dropdown-checkbox {
+  flex: 1;
+}
+
+.selected-datatypes-container {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.3);
+  border-radius: 12px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.selected-datatype-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+.selected-datatype-item:last-child {
+  border-bottom: none;
+}
+
+.datatype-label {
+  color: #f8fafc;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.aggregation-options {
+  display: flex;
+  gap: 1rem;
+}
+
+.aggregation-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.aggregation-option input[type="checkbox"] {
+  margin: 0;
+  accent-color: #3b82f6;
+}
+
+.aggregation-label {
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.aggregation-option input[type="checkbox"]:checked + .aggregation-label {
+  color: #60a5fa;
+  font-weight: 600;
+}
+
 .filter-input,
 .filter-select {
   padding: 0.75rem;
@@ -2549,10 +2802,55 @@ const getCapacityStatusClass = (status: string) => {
 }
 
 .filter-input:focus,
-.filter-select:focus {
+.filter-select:focus,
+.date-input:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.date-range-container {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.date-input-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.date-label {
+  color: #cbd5e1;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.date-input {
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  border: 2px solid #475569;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.8);
+  color: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+
+.date-input::-webkit-datetime-edit-text {
+  color: #cbd5e1;
+}
+
+.date-input::-webkit-datetime-edit-month-field,
+.date-input::-webkit-datetime-edit-day-field,
+.date-input::-webkit-datetime-edit-year-field {
+  color: #f8fafc;
 }
 
 /* Dropdown checkbox styling */
