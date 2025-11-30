@@ -4,9 +4,9 @@ import vue from '@vitejs/plugin-vue'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
-  base: '/custom-report/',
+  base: '',
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
-  },
+    assetsDir: 'assets'
+  }
 })

@@ -49,9 +49,11 @@ const dateRange = ref({
 })
 const sortBy = ref('name')
 const sortOrder = ref('asc')
+const selectedAggregateLevel = ref('Estate Level')
 
 // Dropdown states
 const dropdownOpen = ref({
+  aggregateLevel: false,
   customer: false,
   site: false,
   room: false,
@@ -70,6 +72,17 @@ const exportDropdownOpen = ref(false)
 const exportDropdownOpenB = ref(false)
 const chartExportDropdownOpen = ref(false)
 
+// Graph modal state
+interface TimeSeriesPoint {
+  time: string
+  value: number
+  unit: string
+}
+
+const showGraphModal = ref(false)
+const selectedGraphData = ref<TimeSeriesPoint[] | null>(null)
+const selectedGraphTitle = ref('')
+
 // Chart dropdown state
 const selectedChartDatatype = ref('Average Temperature')
 
@@ -87,8 +100,19 @@ const filteredData = computed(() => {
   let filtered = data.value.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.value.toLowerCase())
     const matchesCustomer = selectedCustomer.value.length === 0 || (item.customer && selectedCustomer.value.includes(item.customer))
-    const matchesSite = selectedSite.value.length === 0 || (item.site && selectedSite.value.includes(item.site))
-    const matchesRoom = selectedRoom.value.length === 0 || (item.room && selectedRoom.value.includes(item.room))
+    
+    // Apply aggregate level filtering
+    let matchesSite = true
+    let matchesRoom = true
+    
+    if (selectedAggregateLevel.value === 'Site Level' || selectedAggregateLevel.value === 'Room Level') {
+      matchesSite = selectedSite.value.length === 0 || (item.site && selectedSite.value.includes(item.site)) || false
+    }
+    
+    if (selectedAggregateLevel.value === 'Room Level') {
+      matchesRoom = selectedRoom.value.length === 0 || (item.room && selectedRoom.value.includes(item.room)) || false
+    }
+    
     const matchesCage = selectedCage.value.length === 0 || (item.cage && selectedCage.value.includes(item.cage))
     const matchesItemType = selectedItemType.value.length === 0 || (item.itemType && selectedItemType.value.includes(item.itemType))
     const matchesDataType = selectedDataType.value.length === 0 || (item.dataType && selectedDataType.value.includes(item.dataType))
@@ -170,71 +194,125 @@ console.log('Filtered data available:', filteredData.value.length, 'items')
 
 // Watch for changes in Group Summary Datatype selection
 watch(selectedSummaryDatatype, (newSelection) => {
-  if (newSelection.length > 0 && !newSelection.includes(selectedChartDatatype.value)) {
-    // Reset to first available option if current selection is not in the new list
-    selectedChartDatatype.value = newSelection[0] || 'Average Temperature'
-  } else if (newSelection.length === 0) {
+  if (newSelection.length > 0) {
+    // Check if current selection is still valid in availableChartDatatypes
+    const available = availableChartDatatypes.value
+    if (!available.includes(selectedChartDatatype.value)) {
+      // Reset to first available option if current selection is not in the new list
+      selectedChartDatatype.value = available[0] || 'Average Temperature'
+    }
+  } else {
     // Reset to Average Temperature if no selection
     selectedChartDatatype.value = 'Average Temperature'
   }
 }, { deep: true })
 
-
-// Power statistics
-const powerStatsDetailed = computed(() => {
-  const voltages = powerData.value.map(item => item.voltage)
-  const currents = powerData.value.map(item => item.current)
-  const powers = powerData.value.map(item => item.power)
-  const loads = powerData.value.map(item => item.load)
-  
-  return {
-    voltage: {
-      min: voltages.length > 0 ? Math.min(...voltages).toFixed(0) : '0',
-      max: voltages.length > 0 ? Math.max(...voltages).toFixed(0) : '0',
-      avg: voltages.length > 0 ? (voltages.reduce((sum, volt) => sum + volt, 0) / voltages.length).toFixed(0) : '0'
-    },
-    current: {
-      min: currents.length > 0 ? Math.min(...currents).toFixed(1) : '0.0',
-      max: currents.length > 0 ? Math.max(...currents).toFixed(1) : '0.0',
-      avg: currents.length > 0 ? (currents.reduce((sum, curr) => sum + curr, 0) / currents.length).toFixed(1) : '0.0'
-    },
-    power: {
-      min: powers.length > 0 ? Math.min(...powers).toFixed(1) : '0.0',
-      max: powers.length > 0 ? Math.max(...powers).toFixed(1) : '0.0',
-      avg: powers.length > 0 ? (powers.reduce((sum, pwr) => sum + pwr, 0) / powers.length).toFixed(1) : '0.0'
-    },
-    load: {
-      min: loads.length > 0 ? Math.min(...loads).toFixed(0) : '0',
-      max: loads.length > 0 ? Math.max(...loads).toFixed(0) : '0',
-      avg: loads.length > 0 ? (loads.reduce((sum, ld) => sum + ld, 0) / loads.length).toFixed(0) : '0'
-    }
+// Watch for changes in aggregations to update chart datatype options
+watch(selectedAggregation, () => {
+  // Check if current selection is still valid in availableChartDatatypes
+  const available = availableChartDatatypes.value
+  if (!available.includes(selectedChartDatatype.value)) {
+    // Reset to first available option if current selection is not in the new list
+    selectedChartDatatype.value = available[0] || 'Average Temperature'
   }
+}, { deep: true })
+
+// Watch for changes in Aggregate Level selection
+watch(selectedAggregateLevel, () => {
+  // Clear site selection when aggregate level changes
+  selectedSite.value = []
+  
+  // Clear room selection only when switching to Estate Level (not needed at Estate Level)
+  if (selectedAggregateLevel.value === 'Estate Level') {
+    selectedRoom.value = []
+  }
+  
+  // Clear cage and itemType selections when aggregate level is Site Level or Estate Level
+  if (selectedAggregateLevel.value === 'Site Level' || selectedAggregateLevel.value === 'Estate Level') {
+    selectedCage.value = []
+    selectedItemType.value = []
+  }
+  
+  // Close any open dropdowns
+  dropdownOpen.value.site = false
+  dropdownOpen.value.room = false
+  dropdownOpen.value.cage = false
+  dropdownOpen.value.itemType = false
 })
 
-// Capacity statistics
-const capacityStats = computed(() => {
-  const used = capacityData.value.map(item => item.used)
-  const total = capacityData.value.map(item => item.total)
-  const utilization = capacityData.value.map(item => item.utilization)
+// Generate sample time series data
+const generateTimeSeriesData = (_type: string, value: number | string, unit: string): TimeSeriesPoint[] => {
+  const data: TimeSeriesPoint[] = []
+  const now = new Date()
+  const baseValue = typeof value === 'number' ? value : parseFloat(value.toString()) || 0
   
-  return {
-    used: {
-      min: used.length > 0 ? Math.min(...used).toFixed(1) : '0.0',
-      max: used.length > 0 ? Math.max(...used).toFixed(1) : '0.0',
-      avg: used.length > 0 ? (used.reduce((sum, u) => sum + u, 0) / used.length).toFixed(1) : '0.0'
-    },
-    total: {
-      min: total.length > 0 ? Math.min(...total).toFixed(1) : '0.0',
-      max: total.length > 0 ? Math.max(...total).toFixed(1) : '0.0',
-      avg: total.length > 0 ? (total.reduce((sum, t) => sum + t, 0) / total.length).toFixed(1) : '0.0'
-    },
-    utilization: {
-      min: utilization.length > 0 ? Math.min(...utilization).toFixed(0) : '0',
-      max: utilization.length > 0 ? Math.max(...utilization).toFixed(0) : '0',
-      avg: utilization.length > 0 ? (utilization.reduce((sum, util) => sum + util, 0) / utilization.length).toFixed(0) : '0'
+  for (let i = 23; i >= 0; i--) {
+    const timestamp = new Date(now.getTime() - (i * 60 * 60 * 1000)) // Last 24 hours
+    const variation = (Math.random() - 0.5) * 0.1 * baseValue // ±5% variation
+    const dataPoint = Math.max(0, baseValue + variation)
+    
+    data.push({
+      time: timestamp.toISOString(),
+      value: parseFloat(dataPoint.toFixed(2)),
+      unit: unit
+    })
+  }
+  
+  return data
+}
+
+// Handle graph icon click
+const showGraph = (record: any, type: string) => {
+  let data: TimeSeriesPoint[] = []
+  let title = ''
+  
+  if (type === 'thermal') {
+    data = generateTimeSeriesData('temperature', record.avgTemp, '°C')
+    if (selectedAggregateLevel.value === 'Estate Level') {
+      title = `${record.site} - Temperature Time Series`
+    } else if (selectedAggregateLevel.value === 'Site Level') {
+      title = `${record.room} - Temperature Time Series`
+    } else {
+      title = `${record.rackLabel} - Temperature Time Series`
+    }
+  } else if (type === 'power') {
+    if (selectedAggregateLevel.value === 'Estate Level') {
+      data = generateTimeSeriesData('power', record.totalPower, 'kW')
+      title = `${record.site} - Total Power Time Series`
+    } else if (selectedAggregateLevel.value === 'Site Level') {
+      data = generateTimeSeriesData('power', record.totalPower, 'kW')
+      title = `${record.room} - Total Power Time Series`
+    } else {
+      data = generateTimeSeriesData('power', record.power, 'kW')
+      title = `${record.rack} - Power Time Series`
+    }
+  } else if (type === 'capacity') {
+    if (selectedAggregateLevel.value === 'Estate Level') {
+      data = generateTimeSeriesData('utilization', record.utilization, '%')
+      title = `${record.site} - Rack Utilization Time Series`
+    } else if (selectedAggregateLevel.value === 'Site Level') {
+      data = generateTimeSeriesData('utilization', record.utilization, '%')
+      title = `${record.room} - Rack Utilization Time Series`
+    } else {
+      data = generateTimeSeriesData('utilization', record.utilization, '%')
+      title = `${record.rack} - Utilization Time Series`
     }
   }
-})
+  
+  selectedGraphData.value = data
+  selectedGraphTitle.value = title
+  showGraphModal.value = true
+}
+
+// Close graph modal
+const closeGraphModal = () => {
+  showGraphModal.value = false
+  selectedGraphData.value = null
+  selectedGraphTitle.value = ''
+}
+
+
+
 
 // Cage B Power statistics
 const powerStatsB = computed(() => {
@@ -278,20 +356,67 @@ const chartData = computed(() => {
   ]
 
   // Sample data for different datatypes aligned with Cage Performance Summary
-  const dataValues = {
+  // Format: datatype + aggregation (e.g., "Temperature - Max", "Power - Avg")
+  const dataValues: Record<string, number[]> = {
     'Average Temperature': [22.1, 23.5, 21.8, 24.2, 23.1, 22.7, 23.8, 24.9, 23.4, 22.3, 24.1, 24.7, 23.2, 22.5, 23.6],
     'Max Temperature': [26.8, 27.5, 26.2, 28.1, 27.2, 26.9, 27.8, 28.9, 27.4, 26.3, 28.1, 28.7, 27.2, 26.5, 27.6],
     'Min Temperature': [18.1, 19.5, 17.8, 20.2, 19.1, 18.7, 19.8, 20.9, 19.4, 18.3, 20.1, 20.7, 19.2, 18.5, 19.6],
     'Max Group Power': [4.1, 4.3, 3.8, 4.5, 4.2, 3.9, 4.4, 4.8, 4.3, 3.7, 4.6, 4.9, 4.1, 3.8, 4.2],
     'Avg Group Power': [2.5, 3.2, 2.8, 4.1, 3.7, 2.9, 3.5, 4.3, 3.8, 2.7, 3.9, 4.2, 3.4, 2.6, 3.1],
-    'Average RH': [42, 45, 38, 48, 44, 41, 46, 51, 43, 39, 47, 49, 42, 40, 45]
+    'Average RH': [42, 45, 38, 48, 44, 41, 46, 51, 43, 39, 47, 49, 42, 40, 45],
+    // Dynamic datatypes with aggregations
+    'Temperature - Max': [26.8, 27.5, 26.2, 28.1, 27.2, 26.9, 27.8, 28.9, 27.4, 26.3, 28.1, 28.7, 27.2, 26.5, 27.6],
+    'Temperature - Min': [18.1, 19.5, 17.8, 20.2, 19.1, 18.7, 19.8, 20.9, 19.4, 18.3, 20.1, 20.7, 19.2, 18.5, 19.6],
+    'Temperature - Avg': [22.1, 23.5, 21.8, 24.2, 23.1, 22.7, 23.8, 24.9, 23.4, 22.3, 24.1, 24.7, 23.2, 22.5, 23.6],
+    'Power - Max': [4.1, 4.3, 3.8, 4.5, 4.2, 3.9, 4.4, 4.8, 4.3, 3.7, 4.6, 4.9, 4.1, 3.8, 4.2],
+    'Power - Min': [1.2, 1.5, 1.1, 1.8, 1.4, 1.3, 1.6, 1.9, 1.5, 1.2, 1.7, 1.8, 1.4, 1.3, 1.5],
+    'Power - Avg': [2.5, 3.2, 2.8, 4.1, 3.7, 2.9, 3.5, 4.3, 3.8, 2.7, 3.9, 4.2, 3.4, 2.6, 3.1],
+    'Humidity - Max': [65, 68, 62, 70, 66, 64, 69, 72, 67, 63, 71, 73, 65, 64, 68],
+    'Humidity - Min': [35, 38, 32, 40, 36, 34, 39, 42, 37, 33, 41, 43, 35, 34, 38],
+    'Humidity - Avg': [50, 53, 47, 55, 51, 49, 54, 57, 52, 48, 56, 58, 50, 49, 53],
+    'PUE - Max': [1.52, 1.55, 1.48, 1.58, 1.53, 1.50, 1.56, 1.60, 1.54, 1.49, 1.57, 1.61, 1.52, 1.50, 1.54],
+    'PUE - Min': [1.15, 1.18, 1.12, 1.20, 1.16, 1.14, 1.19, 1.22, 1.17, 1.13, 1.21, 1.23, 1.15, 1.14, 1.18],
+    'PUE - Avg': [1.35, 1.38, 1.32, 1.40, 1.36, 1.34, 1.39, 1.42, 1.37, 1.33, 1.41, 1.43, 1.35, 1.34, 1.38],
+    'Voltage - Max': [240, 242, 238, 245, 241, 239, 243, 246, 242, 238, 244, 247, 240, 239, 242],
+    'Voltage - Min': [220, 222, 218, 225, 221, 219, 223, 226, 222, 218, 224, 227, 220, 219, 222],
+    'Voltage - Avg': [230, 232, 228, 235, 231, 229, 233, 236, 232, 228, 234, 237, 230, 229, 232],
+    'Amps - Max': [45, 47, 43, 50, 46, 44, 48, 51, 47, 43, 49, 52, 45, 44, 47],
+    'Amps - Min': [22, 24, 20, 27, 23, 21, 25, 28, 24, 20, 26, 29, 22, 21, 24],
+    'Amps - Avg': [33, 35, 31, 38, 34, 32, 36, 39, 35, 31, 37, 40, 33, 32, 35],
+    'Energy - Max': [98, 103, 91, 108, 100, 94, 106, 115, 101, 89, 110, 118, 98, 91, 101],
+    'Energy - Min': [29, 36, 26, 43, 34, 31, 38, 46, 36, 27, 42, 50, 29, 28, 36],
+    'Energy - Avg': [60, 68, 58, 75, 67, 62, 72, 80, 68, 58, 76, 84, 63, 59, 68],
+    'Compliance - Max': [100, 100, 98, 100, 100, 99, 100, 100, 100, 98, 100, 100, 100, 99, 100],
+    'Compliance - Min': [85, 87, 82, 90, 86, 84, 88, 92, 87, 83, 89, 93, 85, 84, 87],
+    'Compliance - Avg': [92, 94, 90, 95, 93, 91, 94, 96, 93, 90, 95, 97, 92, 91, 94]
   }
 
-  const values = dataValues[selectedChartDatatype.value as keyof typeof dataValues] || dataValues['Average Temperature']
+  // Check if selectedChartDatatype is in the format "Datatype - Aggregation"
+  let values: number[] | undefined = dataValues[selectedChartDatatype.value]
+  
+  // If not found, try to get from getDatatypeValue function
+  if (!values) {
+    // Parse the selected chart datatype (e.g., "Temperature - Max" -> datatype: "Temperature", agg: "Max")
+    const match = selectedChartDatatype.value.match(/^(.+?)\s*-\s*(Max|Min|Avg)$/)
+    if (match && match[1] && match[2]) {
+      const datatype = match[1]
+      const aggregation = match[2]
+      // Generate values based on datatype and aggregation
+      const baseValue = getDatatypeValue(datatype, aggregation)
+      // Create time series data
+      const baseNum = parseFloat(baseValue.toString().replace(/[^\d.]/g, '')) || 0
+      values = baseData.map(() => baseNum + (Math.random() - 0.5) * 0.1 * baseNum)
+    } else {
+      values = dataValues['Average Temperature']
+    }
+  }
+  
+  // Ensure values is defined
+  const finalValues = values || dataValues['Average Temperature'] || []
   
   return baseData.map((item, index) => ({
     date: item.date,
-    count: values[index] || 0,
+    count: finalValues[index] || 0,
     displayDate: new Date(item.date).toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric' 
@@ -303,12 +428,57 @@ const maxCount = computed(() => {
   return Math.max(...chartData.value.map(item => item.count), 1)
 })
 
-// Available chart datatypes aligned with Cage Performance Summary
+// Available chart datatypes based on Summary Datatype selections with aggregations
 const availableChartDatatypes = computed(() => {
   if (selectedSummaryDatatype.value.length === 0) {
     return ['Average Temperature', 'Max Temperature', 'Min Temperature', 'Max Group Power', 'Avg Group Power', 'Average RH']
   }
-  return selectedSummaryDatatype.value
+  
+  // Build list of datatypes with their selected aggregations
+  const datatypes: string[] = []
+  selectedSummaryDatatype.value.forEach(datatype => {
+    const aggregations = selectedAggregation.value[datatype] || ['Avg']
+    aggregations.forEach(agg => {
+      // Format: "Temperature - Max", "Power - Avg", etc.
+      datatypes.push(`${datatype} - ${agg}`)
+    })
+  })
+  
+  return datatypes.length > 0 ? datatypes : ['Average Temperature']
+})
+
+// Computed properties to determine which columns to show in tables
+const showThermalColumns = computed(() => {
+  return {
+    temperature: selectedThermalDatatype.value.length === 0 || selectedThermalDatatype.value.includes('Temperature'),
+    humidity: selectedThermalDatatype.value.length === 0 || selectedThermalDatatype.value.includes('Humidity'),
+    outletT: selectedThermalDatatype.value.length === 0 || selectedThermalDatatype.value.includes('Outlet T'),
+    compliance: selectedThermalDatatype.value.length === 0 || selectedThermalDatatype.value.includes('Compliance'),
+    dewPoint: selectedThermalDatatype.value.length === 0 || selectedThermalDatatype.value.includes('Dew Point')
+  }
+})
+
+const showPowerColumns = computed(() => {
+  return {
+    pue: selectedPowerDatatype.value.length === 0 || selectedPowerDatatype.value.includes('PUE'),
+    voltage: selectedPowerDatatype.value.length === 0 || selectedPowerDatatype.value.includes('Voltage'),
+    amps: selectedPowerDatatype.value.length === 0 || selectedPowerDatatype.value.includes('Amps'),
+    power: selectedPowerDatatype.value.length === 0 || selectedPowerDatatype.value.includes('Power'),
+    energy: selectedPowerDatatype.value.length === 0 || selectedPowerDatatype.value.includes('Energy')
+  }
+})
+
+const showCapacityColumns = computed(() => {
+  const showAll = selectedCapacityDatatype.value.length === 0
+  const hasOption = (option: string) => showAll || selectedCapacityDatatype.value.includes(option)
+  const hasMaxPower = showAll || selectedCapacityDatatype.value.some(option => option === 'MAX POWER' || option === 'MAXIMUMPOWER')
+  return {
+    measured: hasOption('Measured'),
+    allocated: hasOption('Allocated'),
+    reserved: hasOption('Reserved'),
+    space: hasOption('Space'),
+    maxPower: hasMaxPower
+  }
 })
 
 // Chart title based on selected datatype
@@ -324,14 +494,44 @@ const getChartUnit = (datatype: string): string => {
     'Min Temperature': '°C',
     'Max Group Power': 'kW',
     'Avg Group Power': 'kW',
-    'Average RH': '%'
+    'Average RH': '%',
+    'Temperature': '°C',
+    'Power': 'kW',
+    'Humidity': '%',
+    'PUE': '',
+    'Voltage': 'V',
+    'Amps': 'A',
+    'Energy': 'kWh',
+    'Compliance': '%',
+    'Airflow': 'CFM',
+    'Utilization': '%',
+    'Dew Point': '°C',
+    'Outlet T': '°C'
   }
+  
+  // Extract base datatype if format is "Datatype - Aggregation"
+  const match = datatype.match(/^(.+?)\s*-\s*(Max|Min|Avg)$/)
+  if (match && match[1]) {
+    const baseDatatype = match[1].trim()
+    return units[baseDatatype] || ''
+  }
+  
   return units[datatype] || ''
 }
 
 // Power statistics for the summary table
 const powerStats = computed(() => {
   const powers = chartData.value.map(item => item.count)
+  if (powers.length === 0) {
+    return {
+      average: 0,
+      peak: 0,
+      min: 0,
+      totalEnergy: 0,
+      efficiency: 0,
+      rackCount: 8
+    }
+  }
   const average = powers.reduce((sum, power) => sum + power, 0) / powers.length
   const peak = Math.max(...powers)
   const min = Math.min(...powers)
@@ -371,46 +571,93 @@ const thermalDataB = ref([
 
 // Cage A - Power data
 const powerData = ref([
-  { id: 1, circuit: 'PDU-01', voltage: 208, current: 15.2, power: 3.2, load: 85, status: 'good' },
-  { id: 2, circuit: 'PDU-02', voltage: 208, current: 13.8, power: 2.9, load: 72, status: 'good' },
-  { id: 3, circuit: 'PDU-03', voltage: 208, current: 2.1, power: 0.4, load: 15, status: 'maintenance' },
-  { id: 4, circuit: 'PDU-04', voltage: 208, current: 19.7, power: 4.1, load: 92, status: 'warning' },
-  { id: 5, circuit: 'PDU-05', voltage: 208, current: 17.8, power: 3.7, load: 78, status: 'good' },
-  { id: 6, circuit: 'PDU-06', voltage: 208, current: 14.0, power: 2.9, load: 65, status: 'good' },
-  { id: 7, circuit: 'PDU-07', voltage: 208, current: 16.8, power: 3.5, load: 88, status: 'good' },
-  { id: 8, circuit: 'PDU-08', voltage: 208, current: 1.0, power: 0.2, load: 5, status: 'inactive' }
+  { id: 1, circuit: 'PDU-01', rack: 'RACK-A01', grid: 'A', voltage: 208, current: 15.2, power: 3.2, load: 85, pue: 1.45, status: 'good' },
+  { id: 2, circuit: 'PDU-02', rack: 'RACK-B02', grid: 'B', voltage: 208, current: 13.8, power: 2.9, load: 72, pue: 1.38, status: 'good' },
+  { id: 3, circuit: 'PDU-03', rack: 'RACK-C03', grid: 'C', voltage: 208, current: 2.1, power: 0.4, load: 15, pue: 1.25, status: 'maintenance' },
+  { id: 4, circuit: 'PDU-04', rack: 'RACK-D04', grid: 'D', voltage: 208, current: 19.7, power: 4.1, load: 92, pue: 1.52, status: 'warning' },
+  { id: 5, circuit: 'PDU-05', rack: 'RACK-E05', grid: 'E', voltage: 208, current: 17.8, power: 3.7, load: 78, pue: 1.48, status: 'good' },
+  { id: 6, circuit: 'PDU-06', rack: 'RACK-F06', grid: 'F', voltage: 208, current: 14.0, power: 2.9, load: 65, pue: 1.35, status: 'good' },
+  { id: 7, circuit: 'PDU-07', rack: 'RACK-A01', grid: 'A', voltage: 208, current: 16.8, power: 3.5, load: 88, pue: 1.42, status: 'good' },
+  { id: 8, circuit: 'PDU-08', rack: 'RACK-B02', grid: 'B', voltage: 208, current: 1.0, power: 0.2, load: 5, pue: 1.15, status: 'inactive' }
 ])
 
 // Cage B - Power data
 const powerDataB = ref([
-  { id: 1, circuit: 'PDU-G01', voltage: 208, current: 14.8, power: 3.1, load: 83, status: 'good' },
-  { id: 2, circuit: 'PDU-H02', voltage: 208, current: 13.2, power: 2.7, load: 70, status: 'good' },
-  { id: 3, circuit: 'PDU-I03', voltage: 208, current: 2.3, power: 0.5, load: 18, status: 'maintenance' },
-  { id: 4, circuit: 'PDU-J04', voltage: 208, current: 18.9, power: 3.9, load: 89, status: 'warning' },
-  { id: 5, circuit: 'PDU-K05', voltage: 208, current: 16.5, power: 3.4, load: 75, status: 'good' },
-  { id: 6, circuit: 'PDU-L06', voltage: 208, current: 13.8, power: 2.9, load: 63, status: 'good' },
-  { id: 7, circuit: 'PDU-M07', voltage: 208, current: 15.9, power: 3.3, load: 85, status: 'good' },
-  { id: 8, circuit: 'PDU-N08', voltage: 208, current: 1.2, power: 0.3, load: 7, status: 'inactive' }
+  { id: 1, circuit: 'PDU-G01', rack: 'RACK-G01', grid: 'G', voltage: 208, current: 14.8, power: 3.1, load: 83, pue: 1.43, status: 'good' },
+  { id: 2, circuit: 'PDU-H02', rack: 'RACK-H02', grid: 'H', voltage: 208, current: 13.2, power: 2.7, load: 70, pue: 1.36, status: 'good' },
+  { id: 3, circuit: 'PDU-I03', rack: 'RACK-I03', grid: 'I', voltage: 208, current: 2.3, power: 0.5, load: 18, pue: 1.22, status: 'maintenance' },
+  { id: 4, circuit: 'PDU-J04', rack: 'RACK-J04', grid: 'J', voltage: 208, current: 18.9, power: 3.9, load: 89, pue: 1.51, status: 'warning' },
+  { id: 5, circuit: 'PDU-K05', rack: 'RACK-K05', grid: 'K', voltage: 208, current: 16.5, power: 3.4, load: 75, pue: 1.46, status: 'good' },
+  { id: 6, circuit: 'PDU-L06', rack: 'RACK-L06', grid: 'L', voltage: 208, current: 13.8, power: 2.9, load: 63, pue: 1.33, status: 'good' },
+  { id: 7, circuit: 'PDU-M07', rack: 'RACK-G01', grid: 'G', voltage: 208, current: 15.9, power: 3.3, load: 85, pue: 1.40, status: 'good' },
+  { id: 8, circuit: 'PDU-N08', rack: 'RACK-H02', grid: 'H', voltage: 208, current: 1.2, power: 0.3, load: 7, pue: 1.12, status: 'inactive' }
 ])
 
 // Cage A - Capacity data
 const capacityData = ref([
-  { id: 1, resource: 'Rack Space', used: 68, total: 80, unit: 'U', utilization: 85, status: 'good' },
-  { id: 2, resource: 'Power Capacity', used: 24.5, total: 40, unit: 'kW', utilization: 61, status: 'good' },
-  { id: 3, resource: 'Cooling Capacity', used: 85, total: 100, unit: 'tons', utilization: 85, status: 'warning' },
-  { id: 4, resource: 'Network Ports', used: 156, total: 200, unit: 'ports', utilization: 78, status: 'good' },
-  { id: 5, resource: 'Storage', used: 45, total: 60, unit: 'TB', utilization: 75, status: 'good' },
-  { id: 6, resource: 'Bandwidth', used: 780, total: 1000, unit: 'Mbps', utilization: 78, status: 'good' }
+  { id: 1, resource: 'Rack Space', rack: 'RACK-A01', grid: 'A', used: 68, total: 80, unit: 'U', utilization: 85, status: 'good', maxPower: 80 },
+  { id: 2, resource: 'Power Capacity', rack: 'RACK-B02', grid: 'B', used: 24.5, total: 40, unit: 'kW', utilization: 61, status: 'good', maxPower: 40 },
+  { id: 3, resource: 'Cooling Capacity', rack: 'RACK-C03', grid: 'C', used: 85, total: 100, unit: 'tons', utilization: 85, status: 'warning', maxPower: 100 },
+  { id: 4, resource: 'Network Ports', rack: 'RACK-D04', grid: 'D', used: 156, total: 200, unit: 'ports', utilization: 78, status: 'good', maxPower: 200 },
+  { id: 5, resource: 'Storage', rack: 'RACK-E05', grid: 'E', used: 45, total: 60, unit: 'TB', utilization: 75, status: 'good', maxPower: 60 },
+  { id: 6, resource: 'Bandwidth', rack: 'RACK-F06', grid: 'F', used: 780, total: 1000, unit: 'Mbps', utilization: 78, status: 'good', maxPower: 1000 }
 ])
 
 // Cage B - Capacity data
 const capacityDataB = ref([
-  { id: 1, resource: 'Rack Space', used: 64, total: 80, unit: 'U', utilization: 80, status: 'good' },
-  { id: 2, resource: 'Power Capacity', used: 22.8, total: 40, unit: 'kW', utilization: 57, status: 'good' },
-  { id: 3, resource: 'Cooling Capacity', used: 78, total: 100, unit: 'tons', utilization: 78, status: 'good' },
-  { id: 4, resource: 'Network Ports', used: 142, total: 200, unit: 'ports', utilization: 71, status: 'good' },
-  { id: 5, resource: 'Storage', used: 38, total: 60, unit: 'TB', utilization: 63, status: 'good' },
-  { id: 6, resource: 'Bandwidth', used: 720, total: 1000, unit: 'Mbps', utilization: 72, status: 'good' }
+  { id: 1, resource: 'Rack Space', rack: 'RACK-G01', grid: 'G', used: 64, total: 80, unit: 'U', utilization: 80, status: 'good', maxPower: 80 },
+  { id: 2, resource: 'Power Capacity', rack: 'RACK-H02', grid: 'H', used: 22.8, total: 40, unit: 'kW', utilization: 57, status: 'good', maxPower: 40 },
+  { id: 3, resource: 'Cooling Capacity', rack: 'RACK-I03', grid: 'I', used: 78, total: 100, unit: 'tons', utilization: 78, status: 'good', maxPower: 100 },
+  { id: 4, resource: 'Network Ports', rack: 'RACK-J04', grid: 'J', used: 142, total: 200, unit: 'ports', utilization: 71, status: 'good', maxPower: 200 },
+  { id: 5, resource: 'Storage', rack: 'RACK-K05', grid: 'K', used: 38, total: 60, unit: 'TB', utilization: 63, status: 'good', maxPower: 60 },
+  { id: 6, resource: 'Bandwidth', rack: 'RACK-L06', grid: 'L', used: 720, total: 1000, unit: 'Mbps', utilization: 72, status: 'good', maxPower: 1000 }
+])
+
+// Site-level data for Estate Level view
+const siteThermalData = ref([
+  { id: 1, site: 'Data Center 1', avgTemp: 22.3, minTemp: 20.1, maxTemp: 24.8, humidity: 45, outletTemp: 24.2, status: 'optimal', compliance: 'optimal' },
+  { id: 2, site: 'Data Center 2', avgTemp: 23.1, minTemp: 21.2, maxTemp: 25.5, humidity: 48, outletTemp: 25.1, status: 'good', compliance: 'good' },
+  { id: 3, site: 'Data Center 3', avgTemp: 21.8, minTemp: 19.5, maxTemp: 24.2, humidity: 42, outletTemp: 23.8, status: 'optimal', compliance: 'optimal' },
+  { id: 4, site: 'Remote Site', avgTemp: 24.2, minTemp: 22.1, maxTemp: 26.8, humidity: 52, outletTemp: 26.1, status: 'warning', compliance: 'warning' }
+])
+
+const sitePowerData = ref([
+  { id: 1, site: 'Data Center 1', totalPower: 45.2, avgPower: 42.8, peakPower: 48.1, utilization: 85, pue: 1.42, status: 'good' },
+  { id: 2, site: 'Data Center 2', totalPower: 38.7, avgPower: 36.2, peakPower: 41.5, utilization: 78, pue: 1.38, status: 'good' },
+  { id: 3, site: 'Data Center 3', totalPower: 52.1, avgPower: 48.9, peakPower: 55.3, utilization: 92, pue: 1.48, status: 'warning' },
+  { id: 4, site: 'Remote Site', totalPower: 41.3, avgPower: 39.1, peakPower: 44.2, utilization: 81, pue: 1.35, status: 'good' }
+])
+
+const siteCapacityData = ref([
+  { id: 1, site: 'Data Center 1', totalRacks: 12, usedRacks: 10, availableRacks: 2, utilization: 83, status: 'good', maxPower: 480 },
+  { id: 2, site: 'Data Center 2', totalRacks: 15, usedRacks: 11, availableRacks: 4, utilization: 73, status: 'good', maxPower: 525 },
+  { id: 3, site: 'Data Center 3', totalRacks: 10, usedRacks: 9, availableRacks: 1, utilization: 90, status: 'warning', maxPower: 400 },
+  { id: 4, site: 'Remote Site', totalRacks: 18, usedRacks: 14, availableRacks: 4, utilization: 78, status: 'good', maxPower: 580 }
+])
+
+// Room-level data for Site Level view
+const roomThermalData = ref([
+  { id: 1, room: 'Floor 1', avgTemp: 22.3, minTemp: 20.1, maxTemp: 24.8, humidity: 45, outletTemp: 24.2, status: 'optimal', compliance: 'optimal' },
+  { id: 2, room: 'Floor 2', avgTemp: 23.1, minTemp: 21.2, maxTemp: 25.5, humidity: 48, outletTemp: 25.1, status: 'good', compliance: 'good' },
+  { id: 3, room: 'Floor 3', avgTemp: 21.8, minTemp: 19.5, maxTemp: 24.2, humidity: 42, outletTemp: 23.8, status: 'optimal', compliance: 'optimal' },
+  { id: 4, room: 'Floor 4', avgTemp: 24.2, minTemp: 22.1, maxTemp: 26.8, humidity: 52, outletTemp: 26.1, status: 'warning', compliance: 'warning' },
+  { id: 5, room: 'Floor 5', avgTemp: 22.7, minTemp: 20.8, maxTemp: 25.1, humidity: 46, outletTemp: 24.9, status: 'good', compliance: 'good' }
+])
+
+const roomPowerData = ref([
+  { id: 1, room: 'Floor 1', totalPower: 45.2, avgPower: 42.8, peakPower: 48.1, utilization: 85, pue: 1.44, status: 'good' },
+  { id: 2, room: 'Floor 2', totalPower: 38.7, avgPower: 36.2, peakPower: 41.5, utilization: 78, pue: 1.39, status: 'good' },
+  { id: 3, room: 'Floor 3', totalPower: 52.1, avgPower: 48.9, peakPower: 55.3, utilization: 92, pue: 1.47, status: 'warning' },
+  { id: 4, room: 'Floor 4', totalPower: 41.3, avgPower: 39.1, peakPower: 44.2, utilization: 81, pue: 1.36, status: 'good' },
+  { id: 5, room: 'Floor 5', totalPower: 47.8, avgPower: 44.6, peakPower: 51.2, utilization: 88, pue: 1.41, status: 'good' }
+])
+
+const roomCapacityData = ref([
+  { id: 1, room: 'Floor 1', totalRacks: 12, usedRacks: 10, availableRacks: 2, utilization: 83, status: 'good', maxPower: 160 },
+  { id: 2, room: 'Floor 2', totalRacks: 15, usedRacks: 11, availableRacks: 4, utilization: 73, status: 'good', maxPower: 180 },
+  { id: 3, room: 'Floor 3', totalRacks: 10, usedRacks: 9, availableRacks: 1, utilization: 90, status: 'warning', maxPower: 140 },
+  { id: 4, room: 'Floor 4', totalRacks: 18, usedRacks: 14, availableRacks: 4, utilization: 78, status: 'good', maxPower: 210 },
+  { id: 5, room: 'Floor 5', totalRacks: 14, usedRacks: 12, availableRacks: 2, utilization: 86, status: 'good', maxPower: 170 }
 ])
 
 // Line chart data points
@@ -444,6 +691,7 @@ const linePath = computed(() => {
 
 const clearFilters = () => {
   searchTerm.value = ''
+  selectedAggregateLevel.value = 'Estate Level'
   dateRange.value = { start: '', end: '' }
   selectedCustomer.value = []
   selectedSite.value = []
@@ -497,9 +745,47 @@ const updateSummaryDatatypeSelection = () => {
     }
   })
   
-  // Remove aggregations for deselected datatypes
+  // Remove aggregations for deselected datatypes (only if not in other selections)
   Object.keys(selectedAggregation.value).forEach(datatype => {
-    if (!selectedSummaryDatatype.value.includes(datatype)) {
+    if (!selectedSummaryDatatype.value.includes(datatype) && 
+        !selectedThermalDatatype.value.includes(datatype) && 
+        !selectedPowerDatatype.value.includes(datatype)) {
+      delete selectedAggregation.value[datatype]
+    }
+  })
+}
+
+const updateThermalDatatypeSelection = () => {
+  // When datatypes are selected/deselected, set default aggregation to ['Avg'] for new ones
+  selectedThermalDatatype.value.forEach(datatype => {
+    if (!selectedAggregation.value[datatype] || selectedAggregation.value[datatype].length === 0) {
+      selectedAggregation.value[datatype] = ['Avg']
+    }
+  })
+  
+  // Remove aggregations for deselected datatypes (only if not in other selections)
+  Object.keys(selectedAggregation.value).forEach(datatype => {
+    if (!selectedThermalDatatype.value.includes(datatype) && 
+        !selectedSummaryDatatype.value.includes(datatype) && 
+        !selectedPowerDatatype.value.includes(datatype)) {
+      delete selectedAggregation.value[datatype]
+    }
+  })
+}
+
+const updatePowerDatatypeSelection = () => {
+  // When datatypes are selected/deselected, set default aggregation to ['Avg'] for new ones
+  selectedPowerDatatype.value.forEach(datatype => {
+    if (!selectedAggregation.value[datatype] || selectedAggregation.value[datatype].length === 0) {
+      selectedAggregation.value[datatype] = ['Avg']
+    }
+  })
+  
+  // Remove aggregations for deselected datatypes (only if not in other selections)
+  Object.keys(selectedAggregation.value).forEach(datatype => {
+    if (!selectedPowerDatatype.value.includes(datatype) && 
+        !selectedSummaryDatatype.value.includes(datatype) && 
+        !selectedThermalDatatype.value.includes(datatype)) {
       delete selectedAggregation.value[datatype]
     }
   })
@@ -532,7 +818,10 @@ const getDatatypeValue = (datatype: string, aggregation: string) => {
     'Dew Point': { Max: '18.5°C', Min: '12.2°C', Avg: '15.3°C' },
     'Voltage': { Max: '240V', Min: '220V', Avg: '230V' },
     'Amps': { Max: '45A', Min: '22A', Avg: '33A' },
-    'Outlet T': { Max: '25.8°C', Min: '18.2°C', Avg: '22.1°C' }
+    'Outlet T': { Max: '25.8°C', Min: '18.2°C', Avg: '22.1°C' },
+    'PUE': { Max: '1.52', Min: '1.15', Avg: '1.35' },
+    'Energy': { Max: '118kWh', Min: '29kWh', Avg: '68kWh' },
+    'Compliance': { Max: '100%', Min: '85%', Avg: '94%' }
   }
   
   return mockData[datatype as keyof typeof mockData]?.[aggregation as keyof typeof mockData.Power] || 'N/A'
@@ -546,16 +835,19 @@ const getDatatypeRack = (datatype: string, aggregation: string) => {
     return '-'
   }
   
-  // Mock rack assignments for other datatypes
+  // Mock rack assignments using actual rack labels
   const mockRacks = {
-    'Power': { Max: 'Rack A-01', Min: 'Rack C-02', Avg: '-' },
-    'Humidity': { Max: 'Rack B-01', Min: 'Rack D-02', Avg: '-' },
-    'Airflow': { Max: 'Rack A-02', Min: 'Rack C-01', Avg: '-' },
-    'Utilization': { Max: 'Rack B-02', Min: 'Rack D-01', Avg: '-' },
-    'Dew Point': { Max: 'Rack A-01', Min: 'Rack C-02', Avg: '-' },
-    'Voltage': { Max: 'Rack B-01', Min: 'Rack D-02', Avg: '-' },
-    'Amps': { Max: 'Rack A-02', Min: 'Rack C-01', Avg: '-' },
-    'Outlet T': { Max: 'Rack B-02', Min: 'Rack D-01', Avg: '-' }
+    'Power': { Max: 'RACK-A01', Min: 'RACK-C03', Avg: '-' },
+    'Humidity': { Max: 'RACK-B02', Min: 'RACK-D04', Avg: '-' },
+    'Airflow': { Max: 'RACK-E05', Min: 'RACK-F06', Avg: '-' },
+    'Utilization': { Max: 'RACK-G01', Min: 'RACK-H02', Avg: '-' },
+    'Dew Point': { Max: 'RACK-I03', Min: 'RACK-J04', Avg: '-' },
+    'Voltage': { Max: 'RACK-K05', Min: 'RACK-L06', Avg: '-' },
+    'Amps': { Max: 'RACK-A01', Min: 'RACK-B02', Avg: '-' },
+    'Outlet T': { Max: 'RACK-C03', Min: 'RACK-D04', Avg: '-' },
+    'Energy': { Max: 'RACK-E05', Min: 'RACK-F06', Avg: '-' },
+    'Compliance': { Max: 'RACK-G01', Min: 'RACK-H02', Avg: '-' },
+    'PUE': { Max: 'RACK-A01', Min: 'RACK-C03', Avg: '-' }
   }
   
   return mockRacks[datatype as keyof typeof mockRacks]?.[aggregation as keyof typeof mockRacks.Power] || '-'
@@ -704,7 +996,7 @@ const getCurrentTableDataB = () => {
     case 'thermal':
       return thermalDataB.value
     case 'power':
-      return powerDataB.value
+      return powerData.value
     case 'capacity':
       return capacityDataB.value
     default:
@@ -934,14 +1226,6 @@ const getThermalStatusClass = (status: string) => {
   }
 }
 
-const getPowerStatusClass = (status: string) => {
-  return {
-    'status-good': status === 'good',
-    'status-warning': status === 'warning',
-    'status-maintenance': status === 'maintenance',
-    'status-inactive': status === 'inactive'
-  }
-}
 
 const getCapacityStatusClass = (status: string) => {
   return {
@@ -1017,6 +1301,31 @@ const getCapacityStatusClass = (status: string) => {
         <!-- Filters in Sidebar -->
         <div class="sidebar-filters">
           <div class="filter-group">
+            <label>Aggregate Level</label>
+            <div class="dropdown-checkbox">
+              <button 
+                @click="toggleDropdown('aggregateLevel')" 
+                class="dropdown-button"
+                :class="{ 'active': dropdownOpen.aggregateLevel }"
+              >
+                {{ selectedAggregateLevel }}
+                <span class="dropdown-arrow">▼</span>
+              </button>
+              <div v-if="dropdownOpen.aggregateLevel" class="dropdown-content">
+                <label v-for="option in ['Estate Level', 'Site Level', 'Room Level']" :key="option" class="checkbox-item">
+                  <input 
+                    type="radio" 
+                    :value="option" 
+                    v-model="selectedAggregateLevel"
+                    name="aggregateLevel"
+                  />
+                  <span class="checkbox-label">{{ option }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div class="filter-group">
             <label for="search">Search by Custom Reference</label>
             <input
               id="search"
@@ -1076,7 +1385,7 @@ const getCapacityStatusClass = (status: string) => {
             </div>
           </div>
           
-          <div class="filter-group">
+          <div v-if="selectedAggregateLevel === 'Estate Level' || selectedAggregateLevel === 'Site Level' || selectedAggregateLevel === 'Room Level'" class="filter-group">
             <label>Site</label>
             <div class="dropdown-checkbox">
               <button 
@@ -1101,7 +1410,7 @@ const getCapacityStatusClass = (status: string) => {
             </div>
           </div>
           
-          <div class="filter-group">
+          <div v-if="selectedAggregateLevel === 'Site Level' || selectedAggregateLevel === 'Room Level'" class="filter-group">
             <label>Room</label>
             <div class="dropdown-checkbox">
               <button 
@@ -1126,7 +1435,7 @@ const getCapacityStatusClass = (status: string) => {
             </div>
           </div>
           
-          <div class="filter-group">
+          <div v-if="selectedAggregateLevel === 'Room Level'" class="filter-group">
             <label>Cage/Rack Group</label>
             <div class="dropdown-checkbox">
               <button 
@@ -1151,7 +1460,7 @@ const getCapacityStatusClass = (status: string) => {
             </div>
           </div>
           
-          <div class="filter-group">
+          <div v-if="selectedAggregateLevel === 'Room Level'" class="filter-group">
             <label>Item Type</label>
             <div class="dropdown-checkbox">
               <button 
@@ -1185,11 +1494,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.summaryDatatype }"
               >
-                {{ getDropdownLabel('summaryDatatype', selectedSummaryDatatype, ['Power', 'Temperature', 'Humidity', 'Airflow', 'Utilization', 'Dew Point', 'Voltage', 'Amps', 'Outlet T']) }}
+                {{ getDropdownLabel('summaryDatatype', selectedSummaryDatatype, ['Power', 'PUE','Temperature', 'Humidity', 'Airflow', 'Utilization', 'Voltage', 'Amps','Energy','Compliance']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.summaryDatatype" class="dropdown-content">
-                <label v-for="option in ['Power', 'Temperature', 'Humidity', 'Airflow', 'Utilization', 'Dew Point', 'Voltage', 'Amps', 'Outlet T']" :key="option" class="checkbox-item">
+                <label v-for="option in ['Power', 'Temperature', 'Humidity', 'Airflow', 'Utilization', 'Voltage', 'Amps','Energy','Compliance']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -1228,19 +1537,37 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.thermalDatatype }"
               >
-                {{ getDropdownLabel('thermalDatatype', selectedThermalDatatype, ['Power', 'Temperature', 'Humidity', 'Airflow', 'Utilization', 'Dew Point', 'Voltage', 'Amps', 'Outlet T']) }}
+                {{ getDropdownLabel('thermalDatatype', selectedThermalDatatype, ['Power', 'Temperature', 'Humidity', 'Airflow', 'Utilization', 'Dew Point', 'Voltage', 'Amps', 'Outlet T', 'Low Inlet Temp']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.thermalDatatype" class="dropdown-content">
-                <label v-for="option in ['Temperature', 'Humidity', 'Dew Point', 'Outlet T']" :key="option" class="checkbox-item">
+                <label v-for="option in ['Temperature', 'Humidity', 'Dew Point', 'Outlet T','Compliance']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
                     v-model="selectedThermalDatatype"
-                    @change="updateFilter"
+                    @change="updateThermalDatatypeSelection"
                   />
                   <span class="checkbox-label">{{ option }}</span>
                 </label>
+              </div>
+            </div>
+            
+            <!-- Selected Datatypes with Aggregation Options -->
+            <div v-if="selectedThermalDatatype.length > 0" class="selected-datatypes-container">
+              <div class="selected-datatype-item" v-for="datatype in selectedThermalDatatype" :key="datatype">
+                <div class="datatype-label">{{ datatype }}</div>
+                <div class="aggregation-options">
+                  <label v-for="agg in ['Max', 'Min', 'Avg']" :key="agg" class="aggregation-option">
+                    <input 
+                      type="checkbox" 
+                      :value="agg"
+                      :checked="selectedAggregation[datatype]?.includes(agg) || false"
+                      @change="updateDatatypeAggregation(datatype, agg, ($event.target as HTMLInputElement)?.checked || false)"
+                    />
+                    <span class="aggregation-label">{{ agg }}</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -1257,15 +1584,33 @@ const getCapacityStatusClass = (status: string) => {
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.powerDatatype" class="dropdown-content">
-                <label v-for="option in ['PUE', 'Power', 'Temperature', 'Humidity', 'Airflow', 'Utilization', 'Dew Point', 'Voltage', 'Amps', 'Outlet T']" :key="option" class="checkbox-item">
+                <label v-for="option in ['PUE', 'Power', 'Voltage', 'Amps','Energy']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
                     v-model="selectedPowerDatatype"
-                    @change="updateFilter"
+                    @change="updatePowerDatatypeSelection"
                   />
                   <span class="checkbox-label">{{ option }}</span>
                 </label>
+              </div>
+            </div>
+            
+            <!-- Selected Datatypes with Aggregation Options -->
+            <div v-if="selectedPowerDatatype.length > 0" class="selected-datatypes-container">
+              <div class="selected-datatype-item" v-for="datatype in selectedPowerDatatype" :key="datatype">
+                <div class="datatype-label">{{ datatype }}</div>
+                <div class="aggregation-options">
+                  <label v-for="agg in ['Max', 'Min', 'Avg']" :key="agg" class="aggregation-option">
+                    <input 
+                      type="checkbox" 
+                      :value="agg"
+                      :checked="selectedAggregation[datatype]?.includes(agg) || false"
+                      @change="updateDatatypeAggregation(datatype, agg, ($event.target as HTMLInputElement)?.checked || false)"
+                    />
+                    <span class="aggregation-label">{{ agg }}</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -1278,11 +1623,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.capacityDatatype }"
               >
-                {{ getDropdownLabel('capacityDatatype', selectedCapacityDatatype, ['Max Power', 'Measured', 'Allocated', 'Reserved', 'Space']) }}
+                {{ getDropdownLabel('capacityDatatype', selectedCapacityDatatype, ['Measured', 'Allocated', 'Reserved', 'Space', 'MAXIMUMPOWER']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.capacityDatatype" class="dropdown-content">
-                <label v-for="option in ['Max Power', 'Measured', 'Allocated', 'Reserved', 'Space']" :key="option" class="checkbox-item">
+                <label v-for="option in ['Measured', 'Allocated', 'Reserved', 'Space']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -1304,11 +1649,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.dataResolution }"
               >
-                {{ getDropdownLabel('dataResolution', selectedDataResolution, ['1 minute', '5 minutes', '15 minutes', '1 hour', '1 day']) }}
+                {{ getDropdownLabel('dataResolution', selectedDataResolution, ['1 minute', '2 minutes','5 minutes', '15 minutes', '1 hour', '1 day']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.dataResolution" class="dropdown-content">
-                <label v-for="option in ['1 minute', '5 minutes', '15 minutes', '1 hour', '1 day','1 month','1 Quarter']" :key="option" class="checkbox-item">
+                <label v-for="option in ['1 minute', '2 minutes','5 minutes', '15 minutes', '1 hour', '1 day']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -1356,7 +1701,7 @@ const getCapacityStatusClass = (status: string) => {
               </div>
             </div>
             <div class="chart-container">
-              <svg class="line-chart" viewBox="0 0 600 200" preserveAspectRatio="xMidYMid meet">
+              <svg class="line-chart" viewBox="0 0 600 150" preserveAspectRatio="xMidYMid meet">
                 <!-- Grid lines -->
                 <defs>
                   <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
@@ -1535,35 +1880,102 @@ const getCapacityStatusClass = (status: string) => {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Rack Label</th>
-                  <th>Grid</th>
-                  <th>Temperature Range</th>
-                  <th>Avg Temp</th>
-                  <th>Humidity</th>
-                  <th>Outlet T</th>
-                  <th>Compliance</th>
+                  <th>{{ selectedAggregateLevel === 'Estate Level' ? 'Site' : selectedAggregateLevel === 'Site Level' ? 'Room' : 'Rack Label' }}</th>
+                  <th>{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Grid' }}</th>
+                  <th v-if="showThermalColumns.temperature">Temperature Range</th>
+                  <th v-if="showThermalColumns.temperature">Avg Temp</th>
+                  <th v-if="showThermalColumns.humidity">Humidity</th>
+                  <th v-if="showThermalColumns.dewPoint">Dew Point</th>
+                  <th v-if="showThermalColumns.outletT">Outlet T</th>
+                  <th v-if="showThermalColumns.compliance">Compliance</th>
+                  <th>Graph</th>
                 </tr>
               </thead>
               <tbody>
+                <!-- Estate Level: Show site data -->
+                <template v-if="selectedAggregateLevel === 'Estate Level'">
+                  <tr v-for="site in siteThermalData" :key="site.id" class="data-row">
+                    <td class="name-cell">{{ site.site }}</td>
+                    <td class="name-cell">-</td>
+                    <td v-if="showThermalColumns.temperature" class="value-cell">
+                      <div class="temp-range">
+                        <span class="temp-min">{{ site.minTemp }}°C</span>
+                        <span class="temp-separator">-</span>
+                        <span class="temp-max">{{ site.maxTemp }}°C</span>
+                      </div>
+                    </td>
+                    <td v-if="showThermalColumns.temperature" class="value-cell">{{ site.avgTemp }}°C</td>
+                    <td v-if="showThermalColumns.humidity" class="value-cell">{{ site.humidity }}%</td>
+                    <td v-if="showThermalColumns.dewPoint" class="value-cell">N/A</td>
+                    <td v-if="showThermalColumns.outletT" class="value-cell">{{ site.outletTemp }}°C</td>
+                    <td v-if="showThermalColumns.compliance" class="status-cell">
+                      <span :class="getThermalStatusClass(site.status)" class="status-badge">
+                        {{ site.status }}
+                      </span>
+                    </td>
+                    <td class="action-cell">
+                      <button @click="showGraph(site, 'thermal')" class="graph-btn" title="View Time Series Graph">
+                        📊
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+                <!-- Site Level: Show room data -->
+                <template v-else-if="selectedAggregateLevel === 'Site Level'">
+                  <tr v-for="room in roomThermalData" :key="room.id" class="data-row">
+                    <td class="name-cell">{{ room.room }}</td>
+                    <td class="name-cell">-</td>
+                    <td v-if="showThermalColumns.temperature" class="value-cell">
+                      <div class="temp-range">
+                        <span class="temp-min">{{ room.minTemp }}°C</span>
+                        <span class="temp-separator">-</span>
+                        <span class="temp-max">{{ room.maxTemp }}°C</span>
+                      </div>
+                    </td>
+                    <td v-if="showThermalColumns.temperature" class="value-cell">{{ room.avgTemp }}°C</td>
+                    <td v-if="showThermalColumns.humidity" class="value-cell">{{ room.humidity }}%</td>
+                    <td v-if="showThermalColumns.dewPoint" class="value-cell">N/A</td>
+                    <td v-if="showThermalColumns.outletT" class="value-cell">{{ room.outletTemp }}°C</td>
+                    <td v-if="showThermalColumns.compliance" class="status-cell">
+                      <span :class="getThermalStatusClass(room.status)" class="status-badge">
+                        {{ room.status }}
+                      </span>
+                    </td>
+                    <td class="action-cell">
+                      <button @click="showGraph(room, 'thermal')" class="graph-btn" title="View Time Series Graph">
+                        📊
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+                <!-- Room Level: Show rack data -->
+                <template v-else>
                 <tr v-for="thermal in thermalData" :key="thermal.id" class="data-row">
                   <td class="name-cell">{{ thermal.rackLabel }}</td>
                   <td class="name-cell">{{ thermal.grid }}</td>
-                  <td class="value-cell">
+                  <td v-if="showThermalColumns.temperature" class="value-cell">
                     <div class="temp-range">
                       <span class="temp-min">{{ thermal.minTemp }}°C</span>
                       <span class="temp-separator">-</span>
                       <span class="temp-max">{{ thermal.maxTemp }}°C</span>
                     </div>
                   </td>
-                  <td class="value-cell">{{ thermal.avgTemp }}°C</td>
-                  <td class="value-cell">{{ thermal.humidity }}%</td>
-                  <td class="value-cell">{{ thermal.outletT }}°C</td>
-                  <td class="status-cell">
+                  <td v-if="showThermalColumns.temperature" class="value-cell">{{ thermal.avgTemp }}°C</td>
+                  <td v-if="showThermalColumns.humidity" class="value-cell">{{ thermal.humidity }}%</td>
+                  <td v-if="showThermalColumns.dewPoint" class="value-cell">N/A</td>
+                  <td v-if="showThermalColumns.outletT" class="value-cell">{{ thermal.outletT }}°C</td>
+                  <td v-if="showThermalColumns.compliance" class="status-cell">
                     <span :class="getThermalStatusClass(thermal.status)" class="status-badge">
                       {{ thermal.status }}
                     </span>
                   </td>
+                    <td class="action-cell">
+                      <button @click="showGraph(thermal, 'thermal')" class="graph-btn" title="View Time Series Graph">
+                        📊
+                      </button>
+                  </td>
                 </tr>
+                </template>
               </tbody>
             </table>
           </div>
@@ -1575,52 +1987,64 @@ const getCapacityStatusClass = (status: string) => {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Circuit</th>
-                  <th>Voltage</th>
-                  <th>Current</th>
-                  <th>Power</th>
-                  <th>Load</th>
-                  <th>Status</th>
+                  <th>{{ selectedAggregateLevel === 'Estate Level' ? 'Site' : selectedAggregateLevel === 'Site Level' ? 'Room' : 'Rack Label' }}</th>
+                  <th v-if="showPowerColumns.pue">PUE</th>
+                  <th>{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Grid' }}</th>
+                  <th v-if="showPowerColumns.voltage">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Voltage' }}</th>
+                  <th v-if="showPowerColumns.amps">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Current' }}</th>
+                  <th v-if="showPowerColumns.power">{{ selectedAggregateLevel === 'Estate Level' ? 'Total Power' : selectedAggregateLevel === 'Site Level' ? 'Total Power' : 'Power' }}</th>
+                  <th v-if="showPowerColumns.energy">Energy</th>
+                  <th>Graph</th>
                 </tr>
               </thead>
               <tbody>
+                <!-- Estate Level: Show site data -->
+                <template v-if="selectedAggregateLevel === 'Estate Level'">
+                  <tr v-for="site in sitePowerData" :key="site.id" class="data-row">
+                    <td class="name-cell">{{ site.site }}</td>
+                    <td v-if="showPowerColumns.pue" class="value-cell">{{ site.pue }}</td>
+                    <td class="name-cell">-</td>
+                    <td v-if="showPowerColumns.power" class="value-cell">{{ site.totalPower }}kW</td>
+                    <td v-if="showPowerColumns.energy" class="value-cell">N/A</td>
+                    <td class="action-cell">
+                      <button @click="showGraph(site, 'power')" class="graph-btn" title="View Time Series Graph">
+                        📊
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+                <!-- Site Level: Show room data -->
+                <template v-else-if="selectedAggregateLevel === 'Site Level'">
+                  <tr v-for="room in roomPowerData" :key="room.id" class="data-row">
+                    <td class="name-cell">{{ room.room }}</td>
+                    <td v-if="showPowerColumns.pue" class="value-cell">{{ room.pue }}</td>
+                    <td class="name-cell">-</td>
+                    <td v-if="showPowerColumns.power" class="value-cell">{{ room.totalPower }}kW</td>
+                    <td v-if="showPowerColumns.energy" class="value-cell">N/A</td>
+                    <td class="action-cell">
+                      <button @click="showGraph(room, 'power')" class="graph-btn" title="View Time Series Graph">
+                        📊
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+                <!-- Room Level: Show rack data -->
+                <template v-else>
                 <tr v-for="power in powerData" :key="power.id" class="data-row">
-                  <td class="name-cell">{{ power.circuit }}</td>
-                  <td class="value-cell">{{ power.voltage }}V</td>
-                  <td class="value-cell">{{ power.current }}A</td>
-                  <td class="value-cell">{{ power.power }}kW</td>
-                  <td class="value-cell">{{ power.load }}%</td>
-                  <td class="status-cell">
-                    <span :class="getPowerStatusClass(power.status)" class="status-badge">
-                      {{ power.status }}
-                    </span>
+                    <td class="name-cell">{{ power.rack }}</td>
+                    <td v-if="showPowerColumns.pue" class="value-cell">{{ power.pue }}</td>
+                    <td class="name-cell">{{ power.grid }}</td>
+                  <td v-if="showPowerColumns.voltage" class="value-cell">{{ power.voltage }}V</td>
+                  <td v-if="showPowerColumns.amps" class="value-cell">{{ power.current }}A</td>
+                  <td v-if="showPowerColumns.power" class="value-cell">{{ power.power }}kW</td>
+                  <td v-if="showPowerColumns.energy" class="value-cell">N/A</td>
+                    <td class="action-cell">
+                      <button @click="showGraph(power, 'power')" class="graph-btn" title="View Time Series Graph">
+                        📊
+                      </button>
                   </td>
                 </tr>
-                <!-- Statistics Rows -->
-                <tr class="stats-row">
-                  <td class="stats-label">Min</td>
-                  <td class="stats-value">{{ powerStatsDetailed.voltage.min }}V</td>
-                  <td class="stats-value">{{ powerStatsDetailed.current.min }}A</td>
-                  <td class="stats-value">{{ powerStatsDetailed.power.min }}kW</td>
-                  <td class="stats-value">{{ powerStatsDetailed.load.min }}%</td>
-                  <td class="stats-cell">-</td>
-                </tr>
-                <tr class="stats-row">
-                  <td class="stats-label">Max</td>
-                  <td class="stats-value">{{ powerStatsDetailed.voltage.max }}V</td>
-                  <td class="stats-value">{{ powerStatsDetailed.current.max }}A</td>
-                  <td class="stats-value">{{ powerStatsDetailed.power.max }}kW</td>
-                  <td class="stats-value">{{ powerStatsDetailed.load.max }}%</td>
-                  <td class="stats-cell">-</td>
-                </tr>
-                <tr class="stats-row avg-row">
-                  <td class="stats-label">Average</td>
-                  <td class="stats-value">{{ powerStatsDetailed.voltage.avg }}V</td>
-                  <td class="stats-value">{{ powerStatsDetailed.current.avg }}A</td>
-                  <td class="stats-value">{{ powerStatsDetailed.power.avg }}kW</td>
-                  <td class="stats-value">{{ powerStatsDetailed.load.avg }}%</td>
-                  <td class="stats-cell">-</td>
-                </tr>
+                </template>
               </tbody>
             </table>
           </div>
@@ -1632,51 +2056,70 @@ const getCapacityStatusClass = (status: string) => {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Resource</th>
-                  <th>Max Power</th>
-                  <th>Measured</th>
-                  <th>Allocated</th>
-                  <th>Reserved</th>
-                  <th>Space</th>
-                  <th>Status</th>
+                  <th>{{ selectedAggregateLevel === 'Estate Level' ? 'Site' : selectedAggregateLevel === 'Site Level' ? 'Room' : 'Rack Label' }}</th>
+                  <th>{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Grid' }}</th>
+                  <th v-if="showCapacityColumns.measured">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Measured' }}</th>
+                  <th v-if="showCapacityColumns.allocated">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Allocated' }}</th>
+                  <th v-if="showCapacityColumns.reserved">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Reserved' }}</th>
+                  <th v-if="showCapacityColumns.space">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Space' }}</th>
+                  <th v-if="showCapacityColumns.maxPower">{{ selectedAggregateLevel === 'Estate Level' ? 'Max Power' : selectedAggregateLevel === 'Site Level' ? 'Max Power' : 'Max Power' }}</th>
+                  <th>Graph</th>
                 </tr>
               </thead>
               <tbody>
+                <!-- Estate Level: Show site data -->
+                <template v-if="selectedAggregateLevel === 'Estate Level'">
+                  <tr v-for="site in siteCapacityData" :key="site.id" class="data-row">
+                    <td class="name-cell">{{ site.site }}</td>
+                    <td class="name-cell">-</td>
+                    <td class="value-cell">{{ site.totalRacks }} racks</td>
+                    <td class="value-cell">{{ site.usedRacks }} racks</td>
+                    <td class="value-cell">{{ site.usedRacks }} racks</td>
+                    <td class="value-cell">{{ site.availableRacks }} racks</td>
+                    <td class="value-cell">{{ site.utilization }}%</td>
+                    <td v-if="showCapacityColumns.maxPower" class="value-cell">{{ site.maxPower }} kW</td>
+                    <td class="action-cell">
+                      <button @click="showGraph(site, 'capacity')" class="graph-btn" title="View Time Series Graph">
+                        📊
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+                <!-- Site Level: Show room data -->
+                <template v-else-if="selectedAggregateLevel === 'Site Level'">
+                  <tr v-for="room in roomCapacityData" :key="room.id" class="data-row">
+                    <td class="name-cell">{{ room.room }}</td>
+                    <td class="name-cell">-</td>
+                    <td class="value-cell">{{ room.totalRacks }} racks</td>
+                    <td class="value-cell">{{ room.usedRacks }} racks</td>
+                    <td class="value-cell">{{ room.usedRacks }} racks</td>
+                    <td class="value-cell">{{ room.availableRacks }} racks</td>
+                    <td class="value-cell">{{ room.utilization }}%</td>
+                    <td v-if="showCapacityColumns.maxPower" class="value-cell">{{ room.maxPower }} kW</td>
+                    <td class="action-cell">
+                      <button @click="showGraph(room, 'capacity')" class="graph-btn" title="View Time Series Graph">
+                        📊
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+                <!-- Room Level: Show rack data -->
+                <template v-else>
                 <tr v-for="capacity in capacityData" :key="capacity.id" class="data-row">
-                  <td class="name-cell">{{ capacity.resource }}</td>
-                  <td class="value-cell">{{ capacity.total }} {{ capacity.unit }}</td>
+                    <td class="name-cell">{{ capacity.rack }}</td>
+                    <td class="name-cell">{{ capacity.grid }}</td>
+                  <td class="value-cell">{{ capacity.maxPower }} {{ capacity.unit }}</td>
                   <td class="value-cell">{{ capacity.used }} {{ capacity.unit }}</td>
-                  <td class="value-cell">{{ capacity.used }} {{ capacity.unit }}</td>
-                  <td class="value-cell">{{ capacity.total - capacity.used }} {{ capacity.unit }}</td>
-                  <td class="value-cell">{{ capacity.utilization }}%</td>
-                  <td class="status-cell">
-                    <span :class="getCapacityStatusClass(capacity.status)" class="status-badge">
-                      {{ capacity.status }}
-                    </span>
+                  <td v-if="showCapacityColumns.reserved" class="value-cell">{{ capacity.total - capacity.used }} {{ capacity.unit }}</td>
+                  <td v-if="showCapacityColumns.space" class="value-cell">{{ capacity.utilization }}%</td>
+                  <td v-if="showCapacityColumns.maxPower" class="value-cell">{{ capacity.maxPower }} {{ capacity.unit }}</td>
+                    <td class="action-cell">
+                      <button @click="showGraph(capacity, 'capacity')" class="graph-btn" title="View Time Series Graph">
+                        📊
+                      </button>
                   </td>
                 </tr>
-                <!-- Statistics Rows -->
-                <tr class="stats-row">
-                  <td class="stats-label">Min</td>
-                  <td class="stats-value">{{ capacityStats.used.min }} avg</td>
-                  <td class="stats-value">{{ capacityStats.total.min }} avg</td>
-                  <td class="stats-value">{{ capacityStats.utilization.min }}%</td>
-                  <td class="stats-cell">-</td>
-                </tr>
-                <tr class="stats-row">
-                  <td class="stats-label">Max</td>
-                  <td class="stats-value">{{ capacityStats.used.max }} avg</td>
-                  <td class="stats-value">{{ capacityStats.total.max }} avg</td>
-                  <td class="stats-value">{{ capacityStats.utilization.max }}%</td>
-                  <td class="stats-cell">-</td>
-                </tr>
-                <tr class="stats-row avg-row">
-                  <td class="stats-label">Average</td>
-                  <td class="stats-value">{{ capacityStats.used.avg }} avg</td>
-                  <td class="stats-value">{{ capacityStats.total.avg }} avg</td>
-                  <td class="stats-value">{{ capacityStats.utilization.avg }}%</td>
-                  <td class="stats-cell">-</td>
-                </tr>
+                </template>
               </tbody>
             </table>
           </div>
@@ -1863,6 +2306,7 @@ const getCapacityStatusClass = (status: string) => {
                   <th>Humidity</th>
                   <th>Outlet T</th>
                   <th>Compliance</th>
+                  <th>Graph</th>
                 </tr>
               </thead>
               <tbody>
@@ -1884,6 +2328,11 @@ const getCapacityStatusClass = (status: string) => {
                       {{ thermal.status }}
                     </span>
                   </td>
+                  <td class="action-cell">
+                    <button @click="showGraph(thermal, 'thermal')" class="graph-btn" title="View Time Series Graph">
+                      📊
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -1896,25 +2345,29 @@ const getCapacityStatusClass = (status: string) => {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Circuit</th>
+                  <th>Rack Label</th>
+                  <th>PUE</th>
+                  <th>Grid</th>
                   <th>Voltage</th>
                   <th>Current</th>
                   <th>Power</th>
                   <th>Load</th>
-                  <th>Status</th>
+                  <th>Graph</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="power in powerDataB" :key="power.id" class="data-row">
-                  <td class="name-cell">{{ power.circuit }}</td>
+                  <td class="name-cell">{{ power.rack }}</td>
+                  <td class="value-cell">{{ power.pue }}</td>
+                  <td class="name-cell">{{ power.grid }}</td>
                   <td class="value-cell">{{ power.voltage }}V</td>
                   <td class="value-cell">{{ power.current }}A</td>
                   <td class="value-cell">{{ power.power }}kW</td>
                   <td class="value-cell">{{ power.load }}%</td>
-                  <td class="status-cell">
-                    <span :class="getPowerStatusClass(power.status)" class="status-badge">
-                      {{ power.status }}
-                    </span>
+                  <td class="action-cell">
+                    <button @click="showGraph(power, 'power')" class="graph-btn" title="View Time Series Graph">
+                      📊
+                    </button>
                   </td>
                 </tr>
               </tbody>
@@ -1928,27 +2381,29 @@ const getCapacityStatusClass = (status: string) => {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Resource</th>
+                  <th>Rack Label</th>
+                  <th>Grid</th>
                   <th>Max Power</th>
                   <th>Measured</th>
                   <th>Allocated</th>
                   <th>Reserved</th>
                   <th>Space</th>
-                  <th>Status</th>
+                  <th>Graph</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="capacity in capacityDataB" :key="capacity.id" class="data-row">
-                  <td class="name-cell">{{ capacity.resource }}</td>
+                  <td class="name-cell">{{ capacity.rack }}</td>
+                  <td class="name-cell">{{ capacity.grid }}</td>
                   <td class="value-cell">{{ capacity.total }} {{ capacity.unit }}</td>
                   <td class="value-cell">{{ capacity.used }} {{ capacity.unit }}</td>
                   <td class="value-cell">{{ capacity.used }} {{ capacity.unit }}</td>
                   <td class="value-cell">{{ capacity.total - capacity.used }} {{ capacity.unit }}</td>
                   <td class="value-cell">{{ capacity.utilization }}%</td>
-                  <td class="status-cell">
-                    <span :class="getCapacityStatusClass(capacity.status)" class="status-badge">
-                      {{ capacity.status }}
-                    </span>
+                  <td class="action-cell">
+                    <button @click="showGraph(capacity, 'capacity')" class="graph-btn" title="View Time Series Graph">
+                      📊
+                    </button>
                   </td>
                 </tr>
               </tbody>
@@ -2024,6 +2479,86 @@ const getCapacityStatusClass = (status: string) => {
     </div>
 
     </main>
+    </div>
+  </div>
+
+  <!-- Graph Modal -->
+  <div v-if="showGraphModal" class="modal-overlay" @click="closeGraphModal">
+    <div class="modal-content" @click.stop>
+      <div class="modal-header">
+        <h3>{{ selectedGraphTitle }}</h3>
+        <button @click="closeGraphModal" class="modal-close-btn">×</button>
+      </div>
+      <div class="modal-body">
+        <div v-if="selectedGraphData && selectedGraphData.length > 0" class="graph-container">
+          <svg class="time-series-chart" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet">
+            <!-- Grid lines -->
+            <defs>
+              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#374151" stroke-width="1" opacity="0.3"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+            
+            <!-- Chart area -->
+            <rect x="60" y="40" width="720" height="320" fill="none" stroke="#4b5563" stroke-width="1"/>
+            
+            <!-- Data line -->
+            <polyline
+              :points="selectedGraphData?.map((point, index) => {
+                const x = 60 + (index * 720 / ((selectedGraphData?.length || 1) - 1))
+                const y = 360 - ((point.value / Math.max(...(selectedGraphData?.map(p => p.value) || [1]))) * 320)
+                return `${x},${y}`
+              }).join(' ') || ''"
+              fill="none"
+              stroke="#3b82f6"
+              stroke-width="3"
+            />
+            
+            <!-- Data points -->
+            <circle
+              v-for="(point, index) in selectedGraphData || []"
+              :key="index"
+              :cx="60 + (index * 720 / ((selectedGraphData?.length || 1) - 1))"
+              :cy="360 - ((point.value / Math.max(...(selectedGraphData?.map(p => p.value) || [1]))) * 320)"
+              r="4"
+              fill="#3b82f6"
+            />
+            
+            <!-- X-axis labels (time) -->
+            <text
+              v-for="(point, index) in (selectedGraphData || []).filter((_, i) => i % 4 === 0)"
+              :key="index"
+              :x="60 + (index * 4 * 720 / ((selectedGraphData?.length || 1) - 1))"
+              y="390"
+              class="axis-label"
+              text-anchor="middle"
+            >
+              {{ new Date(point.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+            </text>
+            
+            <!-- Y-axis labels -->
+            <text
+              v-for="(value, index) in [0, 0.25, 0.5, 0.75, 1]"
+              :key="index"
+              x="50"
+              :y="360 - (value * 320) + 5"
+              class="axis-label"
+              text-anchor="end"
+            >
+              {{ (Math.max(...(selectedGraphData?.map(p => p.value) || [1])) * value).toFixed(1) }}
+            </text>
+            
+            <!-- Y-axis unit -->
+            <text x="20" y="200" class="y-axis-label" transform="rotate(-90, 20, 200)">
+              {{ selectedGraphData?.[0]?.unit || '' }}
+            </text>
+          </svg>
+        </div>
+        <div v-else class="no-data">
+          <p>No time series data available</p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -2299,7 +2834,7 @@ const getCapacityStatusClass = (status: string) => {
 
 .chart-stats-section {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 2rem;
   margin-bottom: 2rem;
 }
@@ -2308,7 +2843,7 @@ const getCapacityStatusClass = (status: string) => {
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
   backdrop-filter: blur(20px) saturate(180%);
   border-radius: 24px;
-  padding: 2.5rem;
+  padding: 1.5rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4),
               0 1px 0 rgba(255, 255, 255, 0.05) inset,
               0 -1px 0 rgba(0, 0, 0, 0.1) inset;
@@ -2331,7 +2866,7 @@ const getCapacityStatusClass = (status: string) => {
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
   backdrop-filter: blur(20px) saturate(180%);
   border-radius: 24px;
-  padding: 2.5rem;
+  padding: 1.5rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4),
               0 1px 0 rgba(255, 255, 255, 0.05) inset,
               0 -1px 0 rgba(0, 0, 0, 0.1) inset;
@@ -2351,7 +2886,7 @@ const getCapacityStatusClass = (status: string) => {
 }
 
 .stats-table-title {
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 1rem 0;
   color: #f8fafc;
   font-size: 1.1rem;
   font-weight: 600;
@@ -2375,13 +2910,13 @@ const getCapacityStatusClass = (status: string) => {
 }
 
 .stats-table th {
-  padding: 0.75rem 0;
+  padding: 0.5rem 0;
   font-size: 0.875rem;
   border-bottom: 2px solid #475569;
 }
 
 .stats-table td {
-  padding: 0.75rem 0;
+  padding: 0.5rem 0;
   font-size: 0.875rem;
 }
 
@@ -2548,7 +3083,7 @@ const getCapacityStatusClass = (status: string) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   gap: 1rem;
 }
 
@@ -2662,11 +3197,11 @@ const getCapacityStatusClass = (status: string) => {
 }
 
 .chart-container {
-  height: 300px;
+  height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem 0;
+  padding: 0.5rem 0;
 }
 
 .line-chart {
@@ -3448,5 +3983,116 @@ const getCapacityStatusClass = (status: string) => {
   .date-label {
     font-size: 0.65rem;
   }
+}
+
+/* Graph Button Styles */
+.graph-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  color: #6b7280;
+}
+
+.graph-btn:hover {
+  background-color: #374151;
+  color: #3b82f6;
+  transform: scale(1.1);
+}
+
+.action-cell {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #1f2937;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #374151;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #f9fafb;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.modal-close-btn:hover {
+  background-color: #374151;
+  color: #f9fafb;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.graph-container {
+  width: 100%;
+  height: 400px;
+}
+
+.time-series-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.axis-label {
+  fill: #9ca3af;
+  font-size: 0.75rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.y-axis-label {
+  fill: #6b7280;
+  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+}
+
+.no-data {
+  text-align: center;
+  padding: 2rem;
+  color: #9ca3af;
 }
 </style>
