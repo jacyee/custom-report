@@ -31,6 +31,7 @@ const data = ref<DataItem[]>([
 
 // Filter states
 const searchTerm = ref('')
+const itemLabel = ref('')
 const selectedCustomer = ref<string[]>([])
 const selectedSite = ref<string[]>([])
 const selectedRoom = ref<string[]>([])
@@ -100,6 +101,7 @@ const filteredData = computed(() => {
   let filtered = data.value.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.value.toLowerCase())
     const matchesCustomer = selectedCustomer.value.length === 0 || (item.customer && selectedCustomer.value.includes(item.customer))
+    const matchesItemLabel = itemLabel.value.trim() === '' || item.name.toLowerCase().includes(itemLabel.value.toLowerCase())
     
     // Apply aggregate level filtering
     let matchesSite = true
@@ -135,7 +137,7 @@ const filteredData = computed(() => {
       return true
     }
     
-    return matchesSearch && matchesCustomer && matchesSite && matchesRoom && matchesCage && matchesItemType && matchesDataType && matchesDateRange()
+    return matchesSearch && matchesCustomer && matchesItemLabel && matchesSite && matchesRoom && matchesCage && matchesItemType && matchesDataType && matchesDateRange()
   })
 
   // Sort data
@@ -691,6 +693,7 @@ const linePath = computed(() => {
 
 const clearFilters = () => {
   searchTerm.value = ''
+  itemLabel.value = ''
   selectedAggregateLevel.value = 'Estate Level'
   dateRange.value = { start: '', end: '' }
   selectedCustomer.value = []
@@ -1483,6 +1486,17 @@ const getCapacityStatusClass = (status: string) => {
                 </label>
               </div>
             </div>
+          </div>
+
+          <div v-if="selectedAggregateLevel === 'Room Level'" class="filter-group">
+            <label for="item-label">Item Label</label>
+            <input
+              id="item-label"
+              v-model="itemLabel"
+              type="text"
+              placeholder="Filter by item label..."
+              class="filter-input"
+            />
           </div>
           
           
