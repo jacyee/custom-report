@@ -19,18 +19,19 @@ interface DataItem {
 }
 
 const data = ref<DataItem[]>([
-  { id: 1, name: 'Rack A-01', category: 'Development', status: 'active', value: 15000, date: '2024-01-15', priority: 'high', customer: 'Acme Corp', site: 'Data Center 1', room: 'Floor 1', cage: 'Cage A', itemType: 'rack', dataType: 'Power' },
-  { id: 2, name: 'Rack A-02', category: 'Marketing', status: 'pending', value: 8500, date: '2024-01-20', priority: 'medium', customer: 'Tech Solutions', site: 'Data Center 2', room: 'Floor 2', cage: 'Cage B', itemType: 'ambient orb', dataType: 'Temperature' },
-  { id: 3, name: 'Rack B-01', category: 'Sales', status: 'active', value: 22000, date: '2024-01-10', priority: 'high', customer: 'Data Systems', site: 'Data Center 1', room: 'Floor 3', cage: 'Cage C', itemType: 'cooling', dataType: 'Humidity' },
+  { id: 1, name: 'Rack A-01', category: 'Development', status: 'active', value: 15000, date: '2024-01-15', priority: 'high', customer: 'Acme Corp', site: 'Data Center 1', room: 'Floor 1', cage: 'DFM1', itemType: 'rack', dataType: 'Power' },
+  { id: 2, name: 'Rack A-02', category: 'Marketing', status: 'pending', value: 8500, date: '2024-01-20', priority: 'medium', customer: 'Tech Solutions', site: 'Data Center 2', room: 'Floor 2', cage: 'DFM2', itemType: 'ambient orb', dataType: 'Temperature' },
+  { id: 3, name: 'Rack B-01', category: 'Sales', status: 'active', value: 22000, date: '2024-01-10', priority: 'high', customer: 'Data Systems', site: 'Data Center 1', room: 'Floor 3', cage: 'DFM3', itemType: 'cooling', dataType: 'Humidity' },
   { id: 4, name: 'Rack B-02', category: 'Development', status: 'inactive', value: 12000, date: '2024-01-05', priority: 'low', customer: 'Cloud Services', site: 'Data Center 3', room: 'Floor 4', cage: 'Rack Group 1', itemType: 'power', dataType: 'Airflow' },
   { id: 5, name: 'Rack C-01', category: 'Marketing', status: 'active', value: 18000, date: '2024-01-25', priority: 'medium', customer: 'Acme Corp', site: 'Remote Site', room: 'Floor 5', cage: 'Rack Group 2', itemType: 'cooling', dataType: 'Utilization' },
-  { id: 6, name: 'Rack C-02', category: 'Sales', status: 'pending', value: 9500, date: '2024-01-18', priority: 'high', customer: 'Tech Solutions', site: 'Data Center 2', room: 'Floor 6', cage: 'Cage A', itemType: 'rack', dataType: 'Power' },
-  { id: 7, name: 'Rack D-01', category: 'Development', status: 'active', value: 13500, date: '2024-01-12', priority: 'medium', customer: 'Data Systems', site: 'Data Center 1', room: 'Floor 7', cage: 'Cage B', itemType: 'ambient orb', dataType: 'Temperature' },
-  { id: 8, name: 'Rack D-02', category: 'Marketing', status: 'inactive', value: 7500, date: '2024-01-08', priority: 'low', customer: 'Cloud Services', site: 'Data Center 3', room: 'Floor 1', cage: 'Cage C', itemType: 'power', dataType: 'Humidity' }
+  { id: 6, name: 'Rack C-02', category: 'Sales', status: 'pending', value: 9500, date: '2024-01-18', priority: 'high', customer: 'Tech Solutions', site: 'Data Center 2', room: 'Floor 6', cage: 'DFM1', itemType: 'rack', dataType: 'Power' },
+  { id: 7, name: 'Rack D-01', category: 'Development', status: 'active', value: 13500, date: '2024-01-12', priority: 'medium', customer: 'Data Systems', site: 'Data Center 1', room: 'Floor 7', cage: 'DFM2', itemType: 'ambient orb', dataType: 'Temperature' },
+  { id: 8, name: 'Rack D-02', category: 'Marketing', status: 'inactive', value: 7500, date: '2024-01-08', priority: 'low', customer: 'Cloud Services', site: 'Data Center 3', room: 'Floor 1', cage: 'DFM3', itemType: 'power', dataType: 'Humidity' }
 ])
 
 // Filter states
 const searchTerm = ref('')
+const searchTerm2 = ref('')
 const itemLabel = ref('')
 const selectedCustomer = ref<string[]>([])
 const selectedSite = ref<string[]>([])
@@ -101,6 +102,7 @@ const filteredData = computed(() => {
   let filtered = data.value.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.value.toLowerCase())
     const matchesCustomer = selectedCustomer.value.length === 0 || (item.customer && selectedCustomer.value.includes(item.customer))
+    const matchesCustomRef2 = searchTerm2.value.trim() === '' || item.name.toLowerCase().includes(searchTerm2.value.toLowerCase())
     const matchesItemLabel = itemLabel.value.trim() === '' || item.name.toLowerCase().includes(itemLabel.value.toLowerCase())
     
     // Apply aggregate level filtering
@@ -108,14 +110,16 @@ const filteredData = computed(() => {
     let matchesRoom = true
     
     if (selectedAggregateLevel.value === 'Site Level' || selectedAggregateLevel.value === 'Room Level') {
-      matchesSite = selectedSite.value.length === 0 || (item.site && selectedSite.value.includes(item.site)) || false
+      const siteSelection = selectedSite.value
+      matchesSite = siteSelection.length === 0 || siteSelection.includes('All Sites') || (item.site && siteSelection.includes(item.site)) || false
     }
     
     if (selectedAggregateLevel.value === 'Room Level') {
-      matchesRoom = selectedRoom.value.length === 0 || (item.room && selectedRoom.value.includes(item.room)) || false
+      const roomSelection = selectedRoom.value
+      matchesRoom = roomSelection.length === 0 || roomSelection.includes('All Rooms') || (item.room && roomSelection.includes(item.room)) || false
     }
     
-    const matchesCage = selectedCage.value.length === 0 || (item.cage && selectedCage.value.includes(item.cage))
+    const matchesCage = selectedCage.value.length === 0 || selectedCage.value.includes('All Rack Groups') || (item.cage && selectedCage.value.includes(item.cage))
     const matchesItemType = selectedItemType.value.length === 0 || (item.itemType && selectedItemType.value.includes(item.itemType))
     const matchesDataType = selectedDataType.value.length === 0 || (item.dataType && selectedDataType.value.includes(item.dataType))
     
@@ -137,7 +141,7 @@ const filteredData = computed(() => {
       return true
     }
     
-    return matchesSearch && matchesCustomer && matchesItemLabel && matchesSite && matchesRoom && matchesCage && matchesItemType && matchesDataType && matchesDateRange()
+    return matchesSearch && matchesCustomer && matchesCustomRef2 && matchesItemLabel && matchesSite && matchesRoom && matchesCage && matchesItemType && matchesDataType && matchesDateRange()
   })
 
   // Sort data
@@ -219,7 +223,7 @@ watch(selectedAggregation, () => {
   }
 }, { deep: true })
 
-// Watch for changes in Aggregate Level selection
+// Watch for changes in View selection
 watch(selectedAggregateLevel, () => {
   // Clear site selection when aggregate level changes
   selectedSite.value = []
@@ -316,7 +320,7 @@ const closeGraphModal = () => {
 
 
 
-// Cage B Power statistics
+// DFM2 Power statistics
 const powerStatsB = computed(() => {
   const powers = powerDataB.value.map(item => item.power)
   const average = powers.reduce((sum, power) => sum + power, 0) / powers.length
@@ -324,7 +328,7 @@ const powerStatsB = computed(() => {
   const min = Math.min(...powers)
   const totalEnergy = powers.reduce((sum, power) => sum + power, 0) // Assuming 1 hour per data point
   const efficiency = Math.round((average / peak) * 100)
-  const rackCount = 6 // Sample rack count for Cage B
+  const rackCount = 6 // Sample rack count for DFM2
   
   return {
     average,
@@ -430,6 +434,43 @@ const maxCount = computed(() => {
   return Math.max(...chartData.value.map(item => item.count), 1)
 })
 
+// Dynamic header cards driven by summary selection
+const topSummaryCards = computed(() => {
+  if (selectedSummaryDatatype.value.length === 0) return []
+  const cards: { label: string; value: string; rack?: string }[] = []
+  selectedSummaryDatatype.value.forEach(datatype => {
+    const aggs = selectedAggregation.value[datatype]?.length
+      ? selectedAggregation.value[datatype]
+      : ['Avg']
+    aggs.forEach(agg => {
+      const value = getDatatypeValue(datatype, agg)
+      const rack = (agg === 'Max' || agg === 'Min') ? getDatatypeRack(datatype, agg) : ''
+      cards.push({
+        label: `${datatype} (${agg})`,
+        value,
+        rack: rack && rack !== '-' ? rack : ''
+      })
+    })
+  })
+  return cards.slice(0, 6)
+})
+
+// Banner text driven by selections
+const bannerTitle = computed(() => {
+  const selectedOr = (arr: string[], fallback: string) => arr.length ? arr.join(', ') : fallback
+  const customer = selectedOr(selectedCustomer.value, 'All Customers')
+  const site = selectedOr(selectedSite.value, 'All Sites')
+  const room = selectedOr(selectedRoom.value, 'All Rooms')
+  const cage = selectedOr(selectedCage.value, 'DFM1')
+  return `${customer} - ${site} - ${room} - ${cage} - Rack Group 01-06`
+})
+
+const bannerSubtitle = computed(() => {
+  const selectedOr = (arr: string[], fallback: string) => arr.length ? arr.join(', ') : fallback
+  const cage = selectedOr(selectedCage.value, 'DFM1')
+  return `Monitoring dashboard for racks A01 through F06 in ${cage}`
+})
+
 // Available chart datatypes based on Summary Datatype selections with aggregations
 const availableChartDatatypes = computed(() => {
   if (selectedSummaryDatatype.value.length === 0) {
@@ -462,7 +503,6 @@ const showThermalColumns = computed(() => {
 
 const showPowerColumns = computed(() => {
   return {
-    pue: selectedPowerDatatype.value.length === 0 || selectedPowerDatatype.value.includes('PUE'),
     voltage: selectedPowerDatatype.value.length === 0 || selectedPowerDatatype.value.includes('Voltage'),
     amps: selectedPowerDatatype.value.length === 0 || selectedPowerDatatype.value.includes('Amps'),
     power: selectedPowerDatatype.value.length === 0 || selectedPowerDatatype.value.includes('Power'),
@@ -473,13 +513,11 @@ const showPowerColumns = computed(() => {
 const showCapacityColumns = computed(() => {
   const showAll = selectedCapacityDatatype.value.length === 0
   const hasOption = (option: string) => showAll || selectedCapacityDatatype.value.includes(option)
-  const hasMaxPower = showAll || selectedCapacityDatatype.value.some(option => option === 'MAX POWER' || option === 'MAXIMUMPOWER')
   return {
     measured: hasOption('Measured'),
     allocated: hasOption('Allocated'),
     reserved: hasOption('Reserved'),
-    space: hasOption('Space'),
-    maxPower: hasMaxPower
+    space: hasOption('Space')
   }
 })
 
@@ -551,7 +589,7 @@ const powerStats = computed(() => {
   }
 })
 
-// Cage A - Thermal data
+// DFM1 - Thermal data
 const thermalData = ref([
   { id: 1, rackLabel: 'RACK-A01', grid: 'A', minTemp: 20.1, maxTemp: 24.8, avgTemp: 22.5, humidity: 45, outletT: 24.2, status: 'optimal' },
   { id: 2, rackLabel: 'RACK-B02', grid: 'B', minTemp: 21.3, maxTemp: 26.2, avgTemp: 23.8, humidity: 48, outletT: 25.1, status: 'good' },
@@ -561,7 +599,7 @@ const thermalData = ref([
   { id: 6, rackLabel: 'RACK-F06', grid: 'F', minTemp: 20.5, maxTemp: 25.3, avgTemp: 22.8, humidity: 46, outletT: 24.9, status: 'good' }
 ])
 
-// Cage B - Thermal data
+// DFM2 - Thermal data
 const thermalDataB = ref([
   { id: 1, rackLabel: 'RACK-G01', grid: 'G', minTemp: 19.5, maxTemp: 23.9, avgTemp: 21.7, humidity: 43, outletT: 23.5, status: 'optimal' },
   { id: 2, rackLabel: 'RACK-H02', grid: 'H', minTemp: 20.8, maxTemp: 25.1, avgTemp: 22.9, humidity: 47, outletT: 24.8, status: 'good' },
@@ -571,7 +609,7 @@ const thermalDataB = ref([
   { id: 6, rackLabel: 'RACK-L06', grid: 'L', minTemp: 20.2, maxTemp: 25.0, avgTemp: 22.6, humidity: 45, outletT: 24.6, status: 'good' }
 ])
 
-// Cage A - Power data
+// DFM1 - Power data
 const powerData = ref([
   { id: 1, circuit: 'PDU-01', rack: 'RACK-A01', grid: 'A', voltage: 208, current: 15.2, power: 3.2, load: 85, pue: 1.45, status: 'good' },
   { id: 2, circuit: 'PDU-02', rack: 'RACK-B02', grid: 'B', voltage: 208, current: 13.8, power: 2.9, load: 72, pue: 1.38, status: 'good' },
@@ -583,7 +621,7 @@ const powerData = ref([
   { id: 8, circuit: 'PDU-08', rack: 'RACK-B02', grid: 'B', voltage: 208, current: 1.0, power: 0.2, load: 5, pue: 1.15, status: 'inactive' }
 ])
 
-// Cage B - Power data
+// DFM2 - Power data
 const powerDataB = ref([
   { id: 1, circuit: 'PDU-G01', rack: 'RACK-G01', grid: 'G', voltage: 208, current: 14.8, power: 3.1, load: 83, pue: 1.43, status: 'good' },
   { id: 2, circuit: 'PDU-H02', rack: 'RACK-H02', grid: 'H', voltage: 208, current: 13.2, power: 2.7, load: 70, pue: 1.36, status: 'good' },
@@ -595,7 +633,7 @@ const powerDataB = ref([
   { id: 8, circuit: 'PDU-N08', rack: 'RACK-H02', grid: 'H', voltage: 208, current: 1.2, power: 0.3, load: 7, pue: 1.12, status: 'inactive' }
 ])
 
-// Cage A - Capacity data
+// DFM1 - Capacity data
 const capacityData = ref([
   { id: 1, resource: 'Rack Space', rack: 'RACK-A01', grid: 'A', used: 68, total: 80, unit: 'U', utilization: 85, status: 'good', maxPower: 80 },
   { id: 2, resource: 'Power Capacity', rack: 'RACK-B02', grid: 'B', used: 24.5, total: 40, unit: 'kW', utilization: 61, status: 'good', maxPower: 40 },
@@ -605,7 +643,7 @@ const capacityData = ref([
   { id: 6, resource: 'Bandwidth', rack: 'RACK-F06', grid: 'F', used: 780, total: 1000, unit: 'Mbps', utilization: 78, status: 'good', maxPower: 1000 }
 ])
 
-// Cage B - Capacity data
+// DFM2 - Capacity data
 const capacityDataB = ref([
   { id: 1, resource: 'Rack Space', rack: 'RACK-G01', grid: 'G', used: 64, total: 80, unit: 'U', utilization: 80, status: 'good', maxPower: 80 },
   { id: 2, resource: 'Power Capacity', rack: 'RACK-H02', grid: 'H', used: 22.8, total: 40, unit: 'kW', utilization: 57, status: 'good', maxPower: 40 },
@@ -693,6 +731,7 @@ const linePath = computed(() => {
 
 const clearFilters = () => {
   searchTerm.value = ''
+  searchTerm2.value = ''
   itemLabel.value = ''
   selectedAggregateLevel.value = 'Estate Level'
   dateRange.value = { start: '', end: '' }
@@ -989,7 +1028,7 @@ const exportToPDF = () => {
   exportDropdownOpen.value = false
 }
 
-// Cage B Export functionality
+// DFM2 Export functionality
 const toggleExportDropdownB = () => {
   exportDropdownOpenB.value = !exportDropdownOpenB.value
 }
@@ -1067,7 +1106,7 @@ const exportToPDFB = () => {
     let html = `
       <html>
         <head>
-          <title>Cage B - ${activeTabB.value.charAt(0).toUpperCase() + activeTabB.value.slice(1)} Data Export</title>
+          <title>DFM2 - ${activeTabB.value.charAt(0).toUpperCase() + activeTabB.value.slice(1)} Data Export</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -1077,7 +1116,7 @@ const exportToPDFB = () => {
           </style>
         </head>
         <body>
-          <h1>Cage B - ${activeTabB.value.charAt(0).toUpperCase() + activeTabB.value.slice(1)} Data Export</h1>
+          <h1>DFM2 - ${activeTabB.value.charAt(0).toUpperCase() + activeTabB.value.slice(1)} Data Export</h1>
           <p>Generated on: ${new Date().toLocaleString()}</p>
           <table>
             <thead>
@@ -1262,32 +1301,41 @@ const getCapacityStatusClass = (status: string) => {
         
         <!-- Statistics in Header -->
         <div class="header-stats">
-          <div class="header-stat">
-            <span class="header-stat-label">Average Temperature</span>
-            <span class="header-stat-value">{{ averageTemperature }}°C</span>
-          </div>
-          <div class="header-stat">
-            <span class="header-stat-label">Max Temperature</span>
-            <span class="header-stat-value">{{ maxTemperature }}°C</span>
-            <span class="header-stat-rack">{{ maxTempRack?.rackLabel || 'N/A' }}</span>
-          </div>
-          <div class="header-stat">
-            <span class="header-stat-label">Min Temperature</span>
-            <span class="header-stat-value">{{ minTempRack?.minTemp || '0.0' }}°C</span>
-            <span class="header-stat-rack">{{ minTempRack?.rackLabel || 'N/A' }}</span>
-          </div>
-          <div class="header-stat">
-            <span class="header-stat-label">Max Power</span>
-            <span class="header-stat-value">{{ powerStats.peak.toFixed(1) }}kW</span>
-          </div>
-          <div class="header-stat">
-            <span class="header-stat-label">Avg Power</span>
-            <span class="header-stat-value">{{ powerStats.average.toFixed(1) }}kW</span>
-          </div>
-          <div class="header-stat">
-            <span class="header-stat-label">Average RH</span>
-            <span class="header-stat-value">50%</span>
-          </div>
+          <template v-if="topSummaryCards.length">
+            <div class="header-stat" v-for="card in topSummaryCards" :key="card.label">
+              <span class="header-stat-label">{{ card.label }}</span>
+              <span class="header-stat-value">{{ card.value }}</span>
+              <span v-if="card.rack" class="header-stat-rack">{{ card.rack }}</span>
+            </div>
+          </template>
+          <template v-else>
+            <div class="header-stat">
+              <span class="header-stat-label">Average Temperature</span>
+              <span class="header-stat-value">{{ averageTemperature }}°C</span>
+            </div>
+            <div class="header-stat">
+              <span class="header-stat-label">Max Temperature</span>
+              <span class="header-stat-value">{{ maxTemperature }}°C</span>
+              <span class="header-stat-rack">{{ maxTempRack?.rackLabel || 'N/A' }}</span>
+            </div>
+            <div class="header-stat">
+              <span class="header-stat-label">Min Temperature</span>
+              <span class="header-stat-value">{{ minTempRack?.minTemp || '0.0' }}°C</span>
+              <span class="header-stat-rack">{{ minTempRack?.rackLabel || 'N/A' }}</span>
+            </div>
+            <div class="header-stat">
+              <span class="header-stat-label">Max Power</span>
+              <span class="header-stat-value">{{ powerStats.peak.toFixed(1) }}kW</span>
+            </div>
+            <div class="header-stat">
+              <span class="header-stat-label">Avg Power</span>
+              <span class="header-stat-value">{{ powerStats.average.toFixed(1) }}kW</span>
+            </div>
+            <div class="header-stat">
+              <span class="header-stat-label">Average RH</span>
+              <span class="header-stat-value">50%</span>
+            </div>
+          </template>
         </div>
       </div>
     </header>
@@ -1298,13 +1346,13 @@ const getCapacityStatusClass = (status: string) => {
       <aside class="sidebar">
         <div class="sidebar-header">
           <h1>Custom Report & Dashboard</h1>
-          <p class="sidebar-subtitle">Monitor rack group performance by cage</p>
+          <p class="sidebar-subtitle">Monitor rack group performance by cage across rooms on different sites e.g. BT as a Colo</p>
         </div>
         
         <!-- Filters in Sidebar -->
         <div class="sidebar-filters">
           <div class="filter-group">
-            <label>Aggregate Level</label>
+            <label>View</label>
             <div class="dropdown-checkbox">
               <button 
                 @click="toggleDropdown('aggregateLevel')" 
@@ -1329,41 +1377,6 @@ const getCapacityStatusClass = (status: string) => {
           </div>
           
           <div class="filter-group">
-            <label for="search">Search by Custom Reference</label>
-            <input
-              id="search"
-              v-model="searchTerm"
-              type="text"
-              placeholder="Search by custom reference..."
-              class="filter-input"
-            />
-          </div>
-          
-          <div class="filter-group">
-            <label>Date Range</label>
-            <div class="date-range-container">
-              <div class="date-input-group">
-                <label for="start-date" class="date-label">From</label>
-                <input
-                  id="start-date"
-                  v-model="dateRange.start"
-                  type="date"
-                  class="date-input"
-                />
-              </div>
-              <div class="date-input-group">
-                <label for="end-date" class="date-label">To</label>
-                <input
-                  id="end-date"
-                  v-model="dateRange.end"
-                  type="date"
-                  class="date-input"
-                />
-              </div>
-            </div>
-          </div>
-          
-          <div class="filter-group">
             <label>Customer</label>
             <div class="dropdown-checkbox">
               <button 
@@ -1371,11 +1384,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.customer }"
               >
-                {{ getDropdownLabel('customer', selectedCustomer, ['Acme Corp', 'Tech Solutions', 'Data Systems', 'Cloud Services']) }}
+                {{ getDropdownLabel('customer', selectedCustomer, ['KPMG', 'Tesco', 'BT', 'ServiceNow', 'Citi Bank', 'Microsoft']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.customer" class="dropdown-content">
-                <label v-for="option in ['Acme Corp', 'Tech Solutions', 'Data Systems', 'Cloud Services']" :key="option" class="checkbox-item">
+                <label v-for="option in ['KPMG', 'Tesco', 'BT', 'ServiceNow', 'Citi Bank', 'Microsoft']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -1388,6 +1401,28 @@ const getCapacityStatusClass = (status: string) => {
             </div>
           </div>
           
+          <div class="filter-group">
+            <label for="search">Search by Custom Reference</label>
+            <input
+              id="search"
+              v-model="searchTerm"
+              type="text"
+              placeholder="Search by custom reference..."
+              class="filter-input"
+            />
+          </div>
+          
+          <div class="filter-group">
+            <label for="search2">Search by Custom Reference 2</label>
+            <input
+              id="search2"
+              v-model="searchTerm2"
+              type="text"
+              placeholder="Search by custom reference..."
+              class="filter-input"
+            />
+          </div>
+          
           <div v-if="selectedAggregateLevel === 'Estate Level' || selectedAggregateLevel === 'Site Level' || selectedAggregateLevel === 'Room Level'" class="filter-group">
             <label>Site</label>
             <div class="dropdown-checkbox">
@@ -1396,11 +1431,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.site }"
               >
-                {{ getDropdownLabel('site', selectedSite, ['Data Center 1', 'Data Center 2', 'Data Center 3', 'Remote Site']) }}
+                {{ getDropdownLabel('site', selectedSite, ['All Sites', 'TH North', 'TH South', 'TH East']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.site" class="dropdown-content">
-                <label v-for="option in ['Data Center 1', 'Data Center 2', 'Data Center 3', 'Remote Site']" :key="option" class="checkbox-item">
+                <label v-for="option in ['All Sites', 'TH North', 'TH South', 'TH East']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -1421,11 +1456,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.room }"
               >
-                {{ getDropdownLabel('room', selectedRoom, ['Floor 1', 'Floor 2', 'Floor 3', 'Floor 4', 'Floor 5', 'Floor 6', 'Floor 7']) }}
+                {{ getDropdownLabel('room', selectedRoom, ['All Rooms', 'Floor 1', 'Floor 2', 'Floor 3', 'Floor 4', 'Floor 5', 'Floor 6', 'Floor 7']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.room" class="dropdown-content">
-                <label v-for="option in ['Floor 1', 'Floor 2', 'Floor 3', 'Floor 4', 'Floor 5', 'Floor 6', 'Floor 7']" :key="option" class="checkbox-item">
+                <label v-for="option in ['All Rooms', 'Floor 1', 'Floor 2', 'Floor 3', 'Floor 4', 'Floor 5', 'Floor 6', 'Floor 7']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -1446,11 +1481,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.cage }"
               >
-                {{ getDropdownLabel('cage', selectedCage, ['Cage A', 'Cage B', 'Cage C', 'Rack Group 1', 'Rack Group 2']) }}
+                {{ getDropdownLabel('cage', selectedCage, ['All Rack Groups', 'DFM1', 'DFM2', 'DFM3', 'Rack Group 1', 'Rack Group 2']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.cage" class="dropdown-content">
-                <label v-for="option in ['Cage A', 'Cage B', 'Cage C', 'Rack Group 1', 'Rack Group 2']" :key="option" class="checkbox-item">
+                <label v-for="option in ['All Rack Groups', 'DFM1', 'DFM2', 'DFM3', 'Rack Group 1', 'Rack Group 2']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -1494,7 +1529,7 @@ const getCapacityStatusClass = (status: string) => {
               id="item-label"
               v-model="itemLabel"
               type="text"
-              placeholder="Filter by item label..."
+              placeholder="e.g. DFM D10 D07"
               class="filter-input"
             />
           </div>
@@ -1508,11 +1543,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.summaryDatatype }"
               >
-                {{ getDropdownLabel('summaryDatatype', selectedSummaryDatatype, ['Power', 'PUE','Temperature', 'Humidity', 'Airflow', 'Utilization', 'Voltage', 'Amps','Energy','Compliance']) }}
+                {{ getDropdownLabel('summaryDatatype', selectedSummaryDatatype, ['Power', 'PUE','Temperature', 'Humidity', 'Voltage', 'Amps','Energy','Compliance']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.summaryDatatype" class="dropdown-content">
-                <label v-for="option in ['Power', 'Temperature', 'Humidity', 'Airflow', 'Utilization', 'Voltage', 'Amps','Energy','Compliance']" :key="option" class="checkbox-item">
+                <label v-for="option in ['Power', 'Temperature', 'Humidity', 'Voltage', 'Amps','Energy','Compliance']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -1528,7 +1563,7 @@ const getCapacityStatusClass = (status: string) => {
             <div v-if="selectedSummaryDatatype.length > 0" class="selected-datatypes-container">
               <div class="selected-datatype-item" v-for="datatype in selectedSummaryDatatype" :key="datatype">
                 <div class="datatype-label">{{ datatype }}</div>
-                <div class="aggregation-options">
+                <div v-if="datatype !== 'Compliance'" class="aggregation-options">
                   <label v-for="agg in ['Max', 'Min', 'Avg']" :key="agg" class="aggregation-option">
                     <input 
                       type="checkbox" 
@@ -1571,7 +1606,7 @@ const getCapacityStatusClass = (status: string) => {
             <div v-if="selectedThermalDatatype.length > 0" class="selected-datatypes-container">
               <div class="selected-datatype-item" v-for="datatype in selectedThermalDatatype" :key="datatype">
                 <div class="datatype-label">{{ datatype }}</div>
-                <div class="aggregation-options">
+                <div v-if="datatype !== 'Compliance'" class="aggregation-options">
                   <label v-for="agg in ['Max', 'Min', 'Avg']" :key="agg" class="aggregation-option">
                     <input 
                       type="checkbox" 
@@ -1594,11 +1629,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.powerDatatype }"
               >
-                {{ getDropdownLabel('powerDatatype', selectedPowerDatatype, ['PUE', 'Power', 'Temperature', 'Humidity', 'Airflow', 'Utilization', 'Dew Point', 'Voltage', 'Amps', 'Outlet T']) }}
+                {{ getDropdownLabel('powerDatatype', selectedPowerDatatype, ['Power', 'Temperature', 'Humidity', 'Airflow', 'Utilization', 'Dew Point', 'Voltage', 'Amps', 'Outlet T']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.powerDatatype" class="dropdown-content">
-                <label v-for="option in ['PUE', 'Power', 'Voltage', 'Amps','Energy']" :key="option" class="checkbox-item">
+                <label v-for="option in ['Power', 'Voltage', 'Amps','Energy']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -1614,7 +1649,7 @@ const getCapacityStatusClass = (status: string) => {
             <div v-if="selectedPowerDatatype.length > 0" class="selected-datatypes-container">
               <div class="selected-datatype-item" v-for="datatype in selectedPowerDatatype" :key="datatype">
                 <div class="datatype-label">{{ datatype }}</div>
-                <div class="aggregation-options">
+                <div v-if="datatype !== 'Compliance'" class="aggregation-options">
                   <label v-for="agg in ['Max', 'Min', 'Avg']" :key="agg" class="aggregation-option">
                     <input 
                       type="checkbox" 
@@ -1663,11 +1698,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.dataResolution }"
               >
-                {{ getDropdownLabel('dataResolution', selectedDataResolution, ['1 minute', '2 minutes','5 minutes', '15 minutes', '1 hour', '1 day']) }}
+                {{ getDropdownLabel('dataResolution', selectedDataResolution, ['5 min aggregate', '15 min aggregate', 'Daily']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.dataResolution" class="dropdown-content">
-                <label v-for="option in ['1 minute', '2 minutes','5 minutes', '15 minutes', '1 hour', '1 day']" :key="option" class="checkbox-item">
+                <label v-for="option in ['5 min aggregate', '15 min aggregate', 'Daily']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -1676,6 +1711,30 @@ const getCapacityStatusClass = (status: string) => {
                   />
                   <span class="checkbox-label">{{ option }}</span>
                 </label>
+              </div>
+            </div>
+          </div>
+          
+          <div class="filter-group">
+            <label>Date Range</label>
+            <div class="date-range-container">
+              <div class="date-input-group">
+                <label for="start-date" class="date-label">From</label>
+                <input
+                  id="start-date"
+                  v-model="dateRange.start"
+                  type="date"
+                  class="date-input"
+                />
+              </div>
+              <div class="date-input-group">
+                <label for="end-date" class="date-label">To</label>
+                <input
+                  id="end-date"
+                  v-model="dateRange.end"
+                  type="date"
+                  class="date-input"
+                />
               </div>
             </div>
           </div>
@@ -1691,8 +1750,8 @@ const getCapacityStatusClass = (status: string) => {
       <main class="main-content">
         <!-- Cage/rack Group Header -->
         <div class="cage-group-header">
-          <h2 class="cage-group-title">Cage A - Rack Group 01-06</h2>
-          <p class="cage-group-subtitle">Monitoring dashboard for racks A01 through F06 in Cage A</p>
+          <h2 class="cage-group-title">{{ bannerTitle }}</h2>
+          <p class="cage-group-subtitle">{{ bannerSubtitle }}</p>
         </div>
         
         <!-- Chart and Stats Section -->
@@ -2002,7 +2061,6 @@ const getCapacityStatusClass = (status: string) => {
               <thead>
                 <tr>
                   <th>{{ selectedAggregateLevel === 'Estate Level' ? 'Site' : selectedAggregateLevel === 'Site Level' ? 'Room' : 'Rack Label' }}</th>
-                  <th v-if="showPowerColumns.pue">PUE</th>
                   <th>{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Grid' }}</th>
                   <th v-if="showPowerColumns.voltage">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Voltage' }}</th>
                   <th v-if="showPowerColumns.amps">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Current' }}</th>
@@ -2016,7 +2074,6 @@ const getCapacityStatusClass = (status: string) => {
                 <template v-if="selectedAggregateLevel === 'Estate Level'">
                   <tr v-for="site in sitePowerData" :key="site.id" class="data-row">
                     <td class="name-cell">{{ site.site }}</td>
-                    <td v-if="showPowerColumns.pue" class="value-cell">{{ site.pue }}</td>
                     <td class="name-cell">-</td>
                     <td v-if="showPowerColumns.power" class="value-cell">{{ site.totalPower }}kW</td>
                     <td v-if="showPowerColumns.energy" class="value-cell">N/A</td>
@@ -2031,7 +2088,6 @@ const getCapacityStatusClass = (status: string) => {
                 <template v-else-if="selectedAggregateLevel === 'Site Level'">
                   <tr v-for="room in roomPowerData" :key="room.id" class="data-row">
                     <td class="name-cell">{{ room.room }}</td>
-                    <td v-if="showPowerColumns.pue" class="value-cell">{{ room.pue }}</td>
                     <td class="name-cell">-</td>
                     <td v-if="showPowerColumns.power" class="value-cell">{{ room.totalPower }}kW</td>
                     <td v-if="showPowerColumns.energy" class="value-cell">N/A</td>
@@ -2045,9 +2101,8 @@ const getCapacityStatusClass = (status: string) => {
                 <!-- Room Level: Show rack data -->
                 <template v-else>
                 <tr v-for="power in powerData" :key="power.id" class="data-row">
-                    <td class="name-cell">{{ power.rack }}</td>
-                    <td v-if="showPowerColumns.pue" class="value-cell">{{ power.pue }}</td>
-                    <td class="name-cell">{{ power.grid }}</td>
+                  <td class="name-cell">{{ power.rack }}</td>
+                  <td class="name-cell">{{ power.grid }}</td>
                   <td v-if="showPowerColumns.voltage" class="value-cell">{{ power.voltage }}V</td>
                   <td v-if="showPowerColumns.amps" class="value-cell">{{ power.current }}A</td>
                   <td v-if="showPowerColumns.power" class="value-cell">{{ power.power }}kW</td>
@@ -2076,7 +2131,6 @@ const getCapacityStatusClass = (status: string) => {
                   <th v-if="showCapacityColumns.allocated">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Allocated' }}</th>
                   <th v-if="showCapacityColumns.reserved">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Reserved' }}</th>
                   <th v-if="showCapacityColumns.space">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Space' }}</th>
-                  <th v-if="showCapacityColumns.maxPower">{{ selectedAggregateLevel === 'Estate Level' ? 'Max Power' : selectedAggregateLevel === 'Site Level' ? 'Max Power' : 'Max Power' }}</th>
                   <th>Graph</th>
                 </tr>
               </thead>
@@ -2088,10 +2142,8 @@ const getCapacityStatusClass = (status: string) => {
                     <td class="name-cell">-</td>
                     <td class="value-cell">{{ site.totalRacks }} racks</td>
                     <td class="value-cell">{{ site.usedRacks }} racks</td>
-                    <td class="value-cell">{{ site.usedRacks }} racks</td>
                     <td class="value-cell">{{ site.availableRacks }} racks</td>
                     <td class="value-cell">{{ site.utilization }}%</td>
-                    <td v-if="showCapacityColumns.maxPower" class="value-cell">{{ site.maxPower }} kW</td>
                     <td class="action-cell">
                       <button @click="showGraph(site, 'capacity')" class="graph-btn" title="View Time Series Graph">
                         📊
@@ -2106,10 +2158,8 @@ const getCapacityStatusClass = (status: string) => {
                     <td class="name-cell">-</td>
                     <td class="value-cell">{{ room.totalRacks }} racks</td>
                     <td class="value-cell">{{ room.usedRacks }} racks</td>
-                    <td class="value-cell">{{ room.usedRacks }} racks</td>
                     <td class="value-cell">{{ room.availableRacks }} racks</td>
                     <td class="value-cell">{{ room.utilization }}%</td>
-                    <td v-if="showCapacityColumns.maxPower" class="value-cell">{{ room.maxPower }} kW</td>
                     <td class="action-cell">
                       <button @click="showGraph(room, 'capacity')" class="graph-btn" title="View Time Series Graph">
                         📊
@@ -2122,11 +2172,10 @@ const getCapacityStatusClass = (status: string) => {
                 <tr v-for="capacity in capacityData" :key="capacity.id" class="data-row">
                     <td class="name-cell">{{ capacity.rack }}</td>
                     <td class="name-cell">{{ capacity.grid }}</td>
-                  <td class="value-cell">{{ capacity.maxPower }} {{ capacity.unit }}</td>
                   <td class="value-cell">{{ capacity.used }} {{ capacity.unit }}</td>
+                  <td class="value-cell">{{ Math.max(capacity.used * 0.9, 0).toFixed(1) }} {{ capacity.unit }}</td>
                   <td v-if="showCapacityColumns.reserved" class="value-cell">{{ capacity.total - capacity.used }} {{ capacity.unit }}</td>
                   <td v-if="showCapacityColumns.space" class="value-cell">{{ capacity.utilization }}%</td>
-                  <td v-if="showCapacityColumns.maxPower" class="value-cell">{{ capacity.maxPower }} {{ capacity.unit }}</td>
                     <td class="action-cell">
                       <button @click="showGraph(capacity, 'capacity')" class="graph-btn" title="View Time Series Graph">
                         📊
@@ -2150,7 +2199,7 @@ const getCapacityStatusClass = (status: string) => {
           :class="{ 'active': exportDropdownOpen }"
         >
           <span class="export-icon">📊</span>
-          Export Data
+          Export Data (time series for all racks)
           <span class="export-arrow">▼</span>
         </button>
         <div v-if="exportDropdownOpen" class="export-menu">
@@ -2174,18 +2223,18 @@ const getCapacityStatusClass = (status: string) => {
       </div>
     </div>
 
-    <!-- Cage B Section -->
+    <!-- DFM2 Section -->
     <div class="cage-group-header">
-      <h2 class="cage-group-title">Cage B - Rack Group G01-L06</h2>
-      <p class="cage-group-subtitle">Monitoring dashboard for racks G01 through L06 in Cage B</p>
+      <h2 class="cage-group-title">DFM2 - Rack Group G01-L06</h2>
+      <p class="cage-group-subtitle">Monitoring dashboard for racks G01 through L06 in DFM2</p>
     </div>
     
-    <!-- Cage B Chart and Stats Section -->
+    <!-- DFM2 Chart and Stats Section -->
     <div class="chart-stats-section">
-      <!-- Cage B Chart Section -->
+      <!-- DFM2 Chart Section -->
       <div class="chart-section">
         <div class="chart-header">
-          <h2 class="chart-title">Cage B Performance Overview</h2>
+          <h2 class="chart-title">DFM2 Performance Overview</h2>
           <div class="chart-dropdown">
             <label class="chart-dropdown-label">View Data:</label>
             <select v-model="selectedChartDatatype" class="chart-select">
@@ -2241,9 +2290,9 @@ const getCapacityStatusClass = (status: string) => {
         </div>
       </div>
 
-      <!-- Cage B Summary Stats Table -->
+      <!-- DFM2 Summary Stats Table -->
       <div class="stats-table-section">
-        <h3 class="stats-table-title">Cage B Performance Summary</h3>
+        <h3 class="stats-table-title">DFM2 Performance Summary</h3>
         <div class="stats-table-container">
           <table class="stats-table">
             <tbody>
@@ -2277,7 +2326,7 @@ const getCapacityStatusClass = (status: string) => {
       </div>
     </div>
 
-    <!-- Cage B Tabbed Tables Container -->
+    <!-- DFM2 Tabbed Tables Container -->
     <div class="tabbed-tables-container">
       <div class="tabs-container">
         <button 
@@ -2307,7 +2356,7 @@ const getCapacityStatusClass = (status: string) => {
       </div>
       
       <div class="tab-content">
-        <!-- Cage B Thermal Tab -->
+        <!-- DFM2 Thermal Tab -->
         <div v-if="activeTabB === 'thermal'" class="tab-panel">
           <div class="table-container">
             <table class="data-table">
@@ -2353,14 +2402,13 @@ const getCapacityStatusClass = (status: string) => {
           </div>
         </div>
         
-        <!-- Cage B Power Tab -->
+        <!-- DFM2 Power Tab -->
         <div v-if="activeTabB === 'power'" class="tab-panel">
           <div class="table-container">
             <table class="data-table">
               <thead>
                 <tr>
                   <th>Rack Label</th>
-                  <th>PUE</th>
                   <th>Grid</th>
                   <th>Voltage</th>
                   <th>Current</th>
@@ -2372,7 +2420,6 @@ const getCapacityStatusClass = (status: string) => {
               <tbody>
                 <tr v-for="power in powerDataB" :key="power.id" class="data-row">
                   <td class="name-cell">{{ power.rack }}</td>
-                  <td class="value-cell">{{ power.pue }}</td>
                   <td class="name-cell">{{ power.grid }}</td>
                   <td class="value-cell">{{ power.voltage }}V</td>
                   <td class="value-cell">{{ power.current }}A</td>
@@ -2389,7 +2436,7 @@ const getCapacityStatusClass = (status: string) => {
           </div>
         </div>
         
-        <!-- Cage B Capacity Tab -->
+        <!-- DFM2 Capacity Tab -->
         <div v-if="activeTabB === 'capacity'" class="tab-panel">
           <div class="table-container">
             <table class="data-table">
@@ -2397,7 +2444,6 @@ const getCapacityStatusClass = (status: string) => {
                 <tr>
                   <th>Rack Label</th>
                   <th>Grid</th>
-                  <th>Max Power</th>
                   <th>Measured</th>
                   <th>Allocated</th>
                   <th>Reserved</th>
@@ -2409,9 +2455,8 @@ const getCapacityStatusClass = (status: string) => {
                 <tr v-for="capacity in capacityDataB" :key="capacity.id" class="data-row">
                   <td class="name-cell">{{ capacity.rack }}</td>
                   <td class="name-cell">{{ capacity.grid }}</td>
-                  <td class="value-cell">{{ capacity.total }} {{ capacity.unit }}</td>
                   <td class="value-cell">{{ capacity.used }} {{ capacity.unit }}</td>
-                  <td class="value-cell">{{ capacity.used }} {{ capacity.unit }}</td>
+                  <td class="value-cell">{{ Math.max(capacity.used * 0.9, 0).toFixed(1) }} {{ capacity.unit }}</td>
                   <td class="value-cell">{{ capacity.total - capacity.used }} {{ capacity.unit }}</td>
                   <td class="value-cell">{{ capacity.utilization }}%</td>
                   <td class="action-cell">
@@ -2425,7 +2470,7 @@ const getCapacityStatusClass = (status: string) => {
           </div>
         </div>
         
-        <!-- Cage B Cooling Tab -->
+        <!-- DFM2 Cooling Tab -->
         <div v-if="activeTabB === 'cooling'" class="tab-panel">
           <div class="table-container">
             <table class="data-table">
@@ -2459,7 +2504,7 @@ const getCapacityStatusClass = (status: string) => {
       </div>
     </div>
 
-    <!-- Cage B Export Options -->
+    <!-- DFM2 Export Options -->
     <div class="export-section">
       <div class="export-dropdown">
         <button 
@@ -2468,7 +2513,7 @@ const getCapacityStatusClass = (status: string) => {
           :class="{ 'active': exportDropdownOpenB }"
         >
           <span class="export-icon">📊</span>
-          Export Cage B Data
+          Export DFM2 Data
           <span class="export-arrow">▼</span>
         </button>
         <div v-if="exportDropdownOpenB" class="export-menu">
@@ -2578,332 +2623,490 @@ const getCapacityStatusClass = (status: string) => {
 </template>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 .dashboard {
+  --bg: #0b0f17;
+  --panel: #0f1521;
+  --card: #121a28;
+  --card-soft: #162033;
+  --text: #e5e9f2;
+  --muted: #8fa0bd;
+  --border: rgba(143, 160, 189, 0.24);
+  --accent: #4f8cff;
+  --accent-strong: #3b7bff;
+  --accent-warm: #f59e0b;
+  --success: #30c48d;
+  --warning: #f5b73a;
+  --danger: #ef5f5f;
   min-height: 100vh;
-  background: linear-gradient(135deg, #0a0f1a 0%, #1a1f2e 25%, #1e293b 50%, #0f172a 75%, #020817 100%);
-  background-attachment: fixed;
+  background: radial-gradient(circle at 20% 20%, rgba(79, 140, 255, 0.08), transparent 28%),
+              radial-gradient(circle at 75% 0%, rgba(245, 158, 11, 0.06), transparent 30%),
+              linear-gradient(135deg, #0a0f18 0%, #0d1320 50%, #0a0f18 100%);
   display: flex;
   flex-direction: column;
-  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  position: relative;
-}
-
-.dashboard::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(ellipse at top, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
-              radial-gradient(ellipse at bottom, rgba(139, 92, 246, 0.03) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
+  font-family: 'Space Grotesk', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--text);
 }
 
 .top-header {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
-  backdrop-filter: blur(20px) saturate(180%);
-  padding: 1.5rem 2rem;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4), 
-              0 1px 0 rgba(255, 255, 255, 0.05) inset,
-              0 -1px 0 rgba(0, 0, 0, 0.1) inset;
-  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 10;
+  background: rgba(15, 21, 33, 0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
 }
 
 .header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 1400px;
+  max-width: 2400px;
+  width: 100%;
   margin: 0 auto;
-  gap: 2rem;
+  padding: 1.25rem 3.5rem;
+  display: grid;
+  grid-template-columns: 1.2fr 2fr;
+  gap: 1.5rem;
+  align-items: center;
 }
 
 .header-left {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  align-items: flex-start;
+  justify-content: space-between;
 }
 
 .header-title {
   margin: 0;
-  color: #f8fafc;
-  font-size: 1.75rem;
-  font-weight: 800;
-  letter-spacing: -0.025em;
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .header-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: grid;
   gap: 0.25rem;
-}
-
-.header-date {
-  color: #cbd5e1;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.header-time {
-  color: #94a3b8;
-  font-size: 0.75rem;
-  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .header-stats {
-  display: flex;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
 }
 
 .header-stat {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(51, 65, 85, 0.8) 50%, rgba(71, 85, 105, 0.7) 100%);
-  color: #f8fafc;
-  padding: 1rem 1.25rem;
-  border-radius: 16px;
-  text-align: center;
-  min-width: 90px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4),
-              0 1px 0 rgba(255, 255, 255, 0.1) inset,
-              0 -1px 0 rgba(0, 0, 0, 0.2) inset;
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.header-stat::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transition: left 0.6s ease;
-}
-
-.header-stat:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5),
-              0 1px 0 rgba(255, 255, 255, 0.15) inset;
-  border-color: rgba(59, 130, 246, 0.5);
-}
-
-.header-stat:hover::before {
-  left: 100%;
+  background: linear-gradient(145deg, #131c2d 0%, #101828 100%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.35rem;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
 }
 
 .header-stat-label {
-  display: block;
   font-size: 0.7rem;
-  opacity: 0.9;
-  margin-bottom: 0.25rem;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--muted);
 }
 
 .header-stat-value {
-  display: block;
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 700;
+  color: var(--text);
 }
 
 .header-stat-rack {
-  display: block;
-  font-size: 0.7rem;
-  opacity: 0.8;
-  margin-top: 0.25rem;
-  color: #cbd5e1;
-  font-weight: 500;
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 .dashboard-content {
-  display: flex;
-  flex: 1;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  min-height: 0;
+  max-width: 2400px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 1.5rem;
 }
 
 .sidebar {
-  width: 320px;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
-  backdrop-filter: blur(20px) saturate(180%);
-  padding: 2rem;
-  box-shadow: 8px 0 50px rgba(0, 0, 0, 0.4),
-              1px 0 0 rgba(255, 255, 255, 0.05) inset,
-              -1px 0 0 rgba(0, 0, 0, 0.1) inset;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  border-right: 1px solid rgba(59, 130, 246, 0.2);
-  position: relative;
-  z-index: 10;
+  background: rgba(16, 22, 35, 0.9);
+  border-right: 1px solid var(--border);
+  padding: 1.75rem 1.5rem;
+  position: sticky;
+  top: 80px;
+  align-self: start;
+  height: calc(100vh - 80px);
+  overflow-y: auto;
+  box-shadow: 10px 0 40px rgba(0, 0, 0, 0.25);
 }
 
 .sidebar-header h1 {
-  margin: 0 0 0.5rem 0;
-  color: #f8fafc;
-  font-size: 1.9rem;
-  font-weight: 800;
-  letter-spacing: -0.025em;
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
 }
 
 .sidebar-subtitle {
-  margin: 0;
-  color: #94a3b8;
-  font-size: 0.875rem;
-  font-weight: 400;
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
 }
 
 .sidebar-filters {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 1.2rem;
+  margin-top: 1.5rem;
 }
 
-.sidebar-stats {
+.filter-group label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.filter-input,
+.date-input,
+.dropdown-button,
+.chart-select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(17, 26, 46, 0.7);
+  color: var(--text);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.filter-input:focus,
+.date-input:focus,
+.dropdown-button:focus,
+.chart-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15);
+}
+
+.dropdown-checkbox {
+  position: relative;
+}
+
+.dropdown-button {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  background: rgba(18, 26, 42, 0.95);
 }
 
-.sidebar-stat {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  padding: 1rem;
+.dropdown-arrow,
+.export-arrow {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.dropdown-content {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  padding: 0.5rem;
+  z-index: 5;
 }
 
-.sidebar-stat-label {
-  display: block;
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 8px;
+  color: var(--text);
+}
+
+.checkbox-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.checkbox-label {
+  font-size: 0.95rem;
+}
+
+.date-range-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.date-label {
   font-size: 0.75rem;
-  opacity: 0.9;
+  color: var(--muted);
   margin-bottom: 0.25rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
-.sidebar-stat-value {
-  display: block;
-  font-size: 1.25rem;
+.date-input-group {
+  display: grid;
+}
+
+.selected-datatypes-container {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.selected-datatype-item {
+  background: rgba(17, 26, 46, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.datatype-label {
   font-weight: 700;
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
+.aggregation-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.aggregation-option {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.aggregation-label {
+  color: var(--text);
+}
+
+.clear-filters-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(120deg, var(--accent) 0%, var(--accent-strong) 100%);
+  border: none;
+  border-radius: 12px;
+  color: #041019;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgba(6, 182, 212, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.clear-filters-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(6, 182, 212, 0.32);
 }
 
 .main-content {
-  flex: 1;
-  padding: 2rem;
-  overflow-y: auto;
+  padding: 2.25rem 4.25rem;
+  min-width: 0;
 }
 
 .cage-group-header {
-  margin-bottom: 2rem;
-  padding: 1.5rem 2rem;
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%);
-  border-radius: 20px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  backdrop-filter: blur(20px) saturate(180%);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  position: relative;
-  overflow: hidden;
-}
-
-.cage-group-header::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #06b6d4, #3b82f6, #8b5cf6, #06b6d4);
-  background-size: 200% 100%;
-  animation: shimmer 3s ease-in-out infinite;
+  background: linear-gradient(140deg, rgba(17, 26, 46, 0.95), rgba(17, 26, 46, 0.7));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+  margin-bottom: 1.5rem;
 }
 
 .cage-group-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #f1f5f9;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  margin: 0 0 0.35rem;
+  font-size: 1.55rem;
 }
 
 .cage-group-subtitle {
   margin: 0;
-  font-size: 1rem;
-  color: #94a3b8;
-  opacity: 0.9;
-  font-weight: 400;
-  line-height: 1.5;
+  color: var(--muted);
 }
 
 .chart-stats-section {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 2rem;
-  margin-bottom: 2rem;
+  gap: 1.5rem;
+  align-items: start;
+  margin-bottom: 1.75rem;
+}
+
+.chart-section,
+.stats-table-section {
+  background: linear-gradient(160deg, #121a28 0%, #0f1724 100%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
 }
 
 .chart-section {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 24px;
-  padding: 1.5rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4),
-              0 1px 0 rgba(255, 255, 255, 0.05) inset,
-              0 -1px 0 rgba(0, 0, 0, 0.1) inset;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  position: relative;
-  overflow: hidden;
-}
-
-.chart-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+  padding: 1.25rem 1.25rem 1.1rem;
 }
 
 .stats-table-section {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 24px;
-  padding: 1.5rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4),
-              0 1px 0 rgba(255, 255, 255, 0.05) inset,
-              0 -1px 0 rgba(0, 0, 0, 0.1) inset;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  position: relative;
-  overflow: hidden;
+  padding: 1.25rem;
 }
 
-.stats-table-section::before {
-  content: '';
+.chart-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.chart-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.chart-dropdown {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.chart-dropdown-label {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.chart-select {
+  width: auto;
+  min-width: 160px;
+}
+
+.chart-container {
+  background: radial-gradient(circle at 30% 20%, rgba(79, 140, 255, 0.08), transparent 40%),
+              radial-gradient(circle at 80% 0%, rgba(245, 158, 11, 0.06), transparent 35%),
+              #0e1726;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.line-chart {
+  width: 100%;
+  height: auto;
+}
+
+.data-point {
+  transition: transform 0.15s ease, r 0.15s ease;
+}
+
+.data-point:hover {
+  transform: translateY(-2px);
+  r: 5;
+}
+
+.value-label,
+.date-label,
+.y-axis-label {
+  fill: var(--muted);
+  font-size: 0.75rem;
+}
+
+.chart-no-data {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem 0;
+}
+
+.chart-export-section {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
+.export-dropdown {
+  position: relative;
+}
+
+.chart-export-button,
+.export-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.6rem 0.9rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.chart-export-button:hover,
+.export-button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(34, 211, 238, 0.5);
+  transform: translateY(-1px);
+}
+
+.chart-export-button.active,
+.export-button.active {
+  border-color: rgba(34, 211, 238, 0.6);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+}
+
+.export-menu {
   position: absolute;
-  top: 0;
-  left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+  top: calc(100% + 6px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  padding: 0.4rem;
+  display: grid;
+  gap: 0.25rem;
+  min-width: 190px;
+  z-index: 6;
+}
+
+.export-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.export-option:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.export-option-icon,
+.export-icon {
+  opacity: 0.8;
 }
 
 .stats-table-title {
-  margin: 0 0 1rem 0;
-  color: #f8fafc;
-  font-size: 1.1rem;
-  font-weight: 600;
+  margin: 0 0 0.75rem;
+  color: var(--text);
 }
 
 .stats-table-container {
@@ -2915,754 +3118,102 @@ const getCapacityStatusClass = (status: string) => {
   border-collapse: collapse;
 }
 
-.stats-table tr {
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.stats-table tr:last-child {
-  border-bottom: none;
+.stats-table th,
+.stats-table td {
+  padding: 0.65rem 0.25rem;
 }
 
 .stats-table th {
-  padding: 0.5rem 0;
-  font-size: 0.875rem;
-  border-bottom: 2px solid #475569;
-}
-
-.stats-table td {
-  padding: 0.5rem 0;
-  font-size: 0.875rem;
-}
-
-.stat-header-label {
-  color: #94a3b8;
-  font-weight: 600;
-  text-align: left;
+  color: var(--muted);
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   font-size: 0.75rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.stat-header-value {
-  color: #94a3b8;
-  font-weight: 600;
-  text-align: right;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 0.75rem;
-}
-
-.stat-header-rack {
-  color: #94a3b8;
-  font-weight: 600;
-  text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 0.75rem;
+.stats-table tr + tr {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .stat-label {
-  color: #cbd5e1;
-  font-weight: 500;
-  text-align: left;
+  color: var(--text);
+  font-weight: 600;
 }
 
 .stat-value {
-  color: #f8fafc;
-  font-weight: 600;
-  text-align: right;
+  color: var(--text);
+  font-weight: 700;
 }
 
 .stat-rack {
-  color: #60a5fa;
-  font-weight: 500;
-  text-align: center;
-  font-size: 0.8rem;
+  color: var(--accent);
+  font-weight: 600;
 }
 
-.stat-multi-value {
-  text-align: left;
-  line-height: 1.6;
-  padding: 0.75rem 0.5rem;
-}
-
+.stat-multi-value,
 .stat-multi-rack {
-  text-align: left;
-  line-height: 1.6;
-  padding: 0.75rem 0.5rem;
-  font-size: 0.75rem;
+  line-height: 1.4;
 }
 
 .tabbed-tables-container {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 24px;
+  background: linear-gradient(160deg, #121a28 0%, #0f1724 100%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4),
-              0 1px 0 rgba(255, 255, 255, 0.05) inset,
-              0 -1px 0 rgba(0, 0, 0, 0.1) inset;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  position: relative;
-}
-
-.tabbed-tables-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
-  z-index: 1;
 }
 
 .tabs-container {
-  display: flex;
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(51, 65, 85, 0.6) 100%);
-  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
-  backdrop-filter: blur(10px);
-  position: relative;
-  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border);
 }
 
 .tab-button {
-  background: none;
+  background: transparent;
   border: none;
-  padding: 1rem 1.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #94a3b8;
+  padding: 0.95rem;
+  color: var(--muted);
+  font-weight: 700;
   cursor: pointer;
-  border-bottom: 3px solid transparent;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.tab-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
-  transition: left 0.5s ease;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .tab-button:hover {
-  color: #f8fafc;
-  background: rgba(30, 41, 59, 0.4);
-  transform: translateY(-1px);
-}
-
-.tab-button:hover::before {
-  left: 100%;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .tab-button.active {
-  color: #3b82f6;
-  border-bottom-color: #3b82f6;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(30, 41, 59, 0.6) 100%);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+  color: var(--text);
+  background: rgba(34, 211, 238, 0.08);
+  border-bottom: 2px solid var(--accent);
 }
 
 .tab-icon {
   font-size: 1rem;
 }
 
-.tab-label {
-  font-weight: 600;
-}
-
 .tab-content {
-  min-height: 400px;
+  padding: 1rem 1.25rem 1.25rem;
 }
 
 .tab-panel {
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn 0.25s ease;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  gap: 1rem;
-}
-
-.chart-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.chart-export-section {
-  margin-top: 1rem;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.chart-export-button {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(51, 65, 85, 0.9) 50%, rgba(71, 85, 105, 0.85) 100%);
-  color: #f8fafc;
-  border: 2px solid rgba(59, 130, 246, 0.4);
-  border-radius: 12px;
-  padding: 0.5rem 1rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2),
-              0 1px 0 rgba(255, 255, 255, 0.1) inset;
-  backdrop-filter: blur(10px);
-  position: relative;
-  overflow: hidden;
-}
-
-.chart-export-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transition: left 0.6s ease;
-}
-
-.chart-export-button:hover {
-  background: linear-gradient(135deg, rgba(51, 65, 85, 0.95) 0%, rgba(71, 85, 105, 0.9) 100%);
-  border-color: rgba(59, 130, 246, 0.6);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3),
-              0 1px 0 rgba(255, 255, 255, 0.15) inset;
-}
-
-.chart-export-button:hover::before {
-  left: 100%;
-}
-
-.chart-export-button.active {
-  border-color: rgba(59, 130, 246, 0.8);
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(30, 41, 59, 0.95) 100%);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 8px 25px rgba(0, 0, 0, 0.3);
-}
-
-.chart-title {
-  margin: 0;
-  color: #f8fafc;
-  font-size: 1.4rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-  flex: 1;
-}
-
-.chart-dropdown {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.chart-dropdown-label {
-  color: #cbd5e1;
-  font-size: 0.875rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.chart-select {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(51, 65, 85, 0.8) 100%);
-  color: #f8fafc;
-  border: 2px solid rgba(59, 130, 246, 0.3);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s ease;
-  min-width: 120px;
-}
-
-.chart-select:hover {
-  border-color: rgba(59, 130, 246, 0.5);
-  background: linear-gradient(135deg, rgba(51, 65, 85, 0.9) 0%, rgba(71, 85, 105, 0.8) 100%);
-}
-
-.chart-select:focus {
-  outline: none;
-  border-color: rgba(59, 130, 246, 0.8);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 6px 20px rgba(0, 0, 0, 0.3);
-}
-
-.chart-container {
-  height: 220px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem 0;
-}
-
-.line-chart {
-  width: 100%;
-  height: 100%;
-  max-width: 600px;
-}
-
-.data-point {
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.data-point:hover {
-  r: 6;
-  fill: #764ba2;
-}
-
-.value-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  fill: #2d3748;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-}
-
-.date-label {
-  font-size: 0.7rem;
-  font-weight: 500;
-  fill: #4a5568;
-}
-
-.y-axis-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  fill: #2d3748;
-  text-anchor: start;
-}
-
-.chart-no-data {
-  text-align: center;
-  padding: 2rem;
-  color: #718096;
-  font-style: italic;
-}
-
-
-
-.filter-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.filter-group label {
-  font-weight: 600;
-  color: #cbd5e1;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.dropdown-row {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-}
-
-.dropdown-row .dropdown-checkbox {
-  flex: 1;
-}
-
-.selected-datatypes-container {
-  margin-top: 1rem;
-  padding: 1rem;
-  background: rgba(15, 23, 42, 0.3);
-  border-radius: 12px;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-}
-
-.selected-datatype-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid rgba(71, 85, 105, 0.3);
-}
-
-.selected-datatype-item:last-child {
-  border-bottom: none;
-}
-
-.datatype-label {
-  color: #f8fafc;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.aggregation-options {
-  display: flex;
-  gap: 1rem;
-}
-
-.aggregation-option {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
-
-.aggregation-option input[type="checkbox"] {
-  margin: 0;
-  accent-color: #3b82f6;
-}
-
-.aggregation-label {
-  color: #cbd5e1;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.aggregation-option input[type="checkbox"]:checked + .aggregation-label {
-  color: #60a5fa;
-  font-weight: 600;
-}
-
-.filter-input,
-.filter-select {
-  padding: 0.75rem;
-  border: 2px solid #475569;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-  background: #1e293b;
-  color: #f8fafc;
-}
-
-.filter-input:focus,
-.filter-select:focus,
-.date-input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.date-range-container {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-end;
-}
-
-.date-input-group {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.date-label {
-  color: #cbd5e1;
-  font-size: 0.75rem;
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-}
-
-.date-input {
-  padding: 0.5rem;
-  font-size: 0.8rem;
-  border: 2px solid #475569;
-  border-radius: 8px;
-  background: rgba(15, 23, 42, 0.8);
-  color: #f8fafc;
-  transition: all 0.2s ease;
-}
-
-.date-input::-webkit-calendar-picker-indicator {
-  filter: invert(1);
-  cursor: pointer;
-}
-
-.date-input::-webkit-datetime-edit-text {
-  color: #cbd5e1;
-}
-
-.date-input::-webkit-datetime-edit-month-field,
-.date-input::-webkit-datetime-edit-day-field,
-.date-input::-webkit-datetime-edit-year-field {
-  color: #f8fafc;
-}
-
-/* Dropdown checkbox styling */
-.dropdown-checkbox {
-  position: relative;
-  width: 100%;
-}
-
-.dropdown-button {
-  width: 100%;
-  padding: 0.75rem;
-  border: 2px solid rgba(71, 85, 105, 0.6);
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(51, 65, 85, 0.8) 100%);
-  color: #f8fafc;
-  font-size: 0.875rem;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.3s ease;
-  text-align: left;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.dropdown-button:hover {
-  border-color: rgba(59, 130, 246, 0.6);
-  background: linear-gradient(135deg, rgba(51, 65, 85, 0.9) 0%, rgba(71, 85, 105, 0.8) 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-}
-
-.dropdown-button.active {
-  border-color: rgba(59, 130, 246, 0.8);
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(30, 41, 59, 0.9) 100%);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 8px 25px rgba(0, 0, 0, 0.3);
-}
-
-.dropdown-arrow {
-  transition: transform 0.2s ease;
-  font-size: 0.75rem;
-  color: #94a3b8;
-}
-
-.dropdown-button.active .dropdown-arrow {
-  transform: rotate(180deg);
-}
-
-.dropdown-content {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
-  border: 2px solid rgba(59, 130, 246, 0.3);
-  border-top: none;
-  border-radius: 0 0 12px 12px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4),
-              0 1px 0 rgba(255, 255, 255, 0.05) inset;
-  z-index: 1000;
-  max-height: 200px;
-  overflow-y: auto;
-  backdrop-filter: blur(20px) saturate(180%);
-}
-
-.checkbox-item {
-  display: flex;
-  align-items: center;
-  padding: 0.75rem;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  border-bottom: 1px solid #334155;
-}
-
-.checkbox-item:last-child {
-  border-bottom: none;
-}
-
-.checkbox-item:hover {
-  background: #334155;
-}
-
-.checkbox-item input[type="checkbox"] {
-  margin-right: 0.75rem;
-  width: 16px;
-  height: 16px;
-  accent-color: #3b82f6;
-  cursor: pointer;
-}
-
-.checkbox-label {
-  color: #f8fafc;
-  font-size: 0.875rem;
-  cursor: pointer;
-  flex: 1;
-}
-
-/* Scrollbar styling for dropdown */
-.dropdown-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.dropdown-content::-webkit-scrollbar-track {
-  background: #334155;
-}
-
-.dropdown-content::-webkit-scrollbar-thumb {
-  background: #64748b;
-  border-radius: 3px;
-}
-
-.dropdown-content::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* Export section styling */
-.export-section {
-  margin-top: 2rem;
-  margin-bottom: 2rem;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.export-dropdown {
-  position: relative;
-}
-
-.export-button {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(51, 65, 85, 0.9) 50%, rgba(71, 85, 105, 0.85) 100%);
-  color: #f8fafc;
-  border: 2px solid rgba(59, 130, 246, 0.4);
-  border-radius: 16px;
-  padding: 0.875rem 1.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3),
-              0 1px 0 rgba(255, 255, 255, 0.1) inset;
-  backdrop-filter: blur(10px);
-  position: relative;
-  overflow: hidden;
-}
-
-.export-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transition: left 0.6s ease;
-}
-
-.export-button:hover {
-  background: linear-gradient(135deg, rgba(51, 65, 85, 0.95) 0%, rgba(71, 85, 105, 0.9) 100%);
-  border-color: rgba(59, 130, 246, 0.6);
-  transform: translateY(-2px);
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4),
-              0 1px 0 rgba(255, 255, 255, 0.15) inset;
-}
-
-.export-button:hover::before {
-  left: 100%;
-}
-
-.export-button.active {
-  border-color: rgba(59, 130, 246, 0.8);
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(30, 41, 59, 0.95) 100%);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 8px 25px rgba(0, 0, 0, 0.3);
-}
-
-.export-icon {
-  font-size: 1rem;
-}
-
-.export-arrow {
-  transition: transform 0.3s ease;
-  font-size: 0.75rem;
-  color: #94a3b8;
-}
-
-.export-button.active .export-arrow {
-  transform: rotate(180deg);
-}
-
-.export-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: #1e293b;
-  border: 2px solid #475569;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  z-index: 1000;
-  min-width: 200px;
-  overflow: hidden;
-  margin-top: 0.5rem;
-}
-
-.export-option {
-  width: 100%;
-  background: transparent;
-  color: #f8fafc;
-  border: none;
-  padding: 1rem 1.25rem;
-  font-size: 0.875rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  transition: all 0.2s ease;
-  text-align: left;
-  border-bottom: 1px solid #334155;
-}
-
-.export-option:last-child {
-  border-bottom: none;
-}
-
-.export-option:hover {
-  background: #334155;
-  color: #ffffff;
-}
-
-.export-option-icon {
-  font-size: 1rem;
-  width: 20px;
-  text-align: center;
-}
-
-.clear-filters-btn {
-  background: linear-gradient(135deg, #1e293b, #334155);
-  color: #f8fafc;
-  border: none;
-  padding: 0.875rem 1.75rem;
-  border-radius: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-}
-
-.clear-filters-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-}
-
 .table-container {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4),
-              0 1px 0 rgba(255, 255, 255, 0.05) inset;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  margin: 1rem;
+  background: rgba(12, 18, 31, 0.65);
 }
 
 .data-table {
@@ -3671,417 +3222,164 @@ const getCapacityStatusClass = (status: string) => {
 }
 
 .data-table th {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(51, 65, 85, 0.9) 50%, rgba(71, 85, 105, 0.85) 100%);
-  color: #f8fafc;
-  padding: 1.25rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
   text-align: left;
-  font-weight: 700;
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid rgba(59, 130, 246, 0.3);
-  position: relative;
-}
-
-.data-table th::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+  padding: 0.75rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.01em;
 }
 
 .data-table td {
-  padding: 1rem;
-  border-bottom: 1px solid rgba(71, 85, 105, 0.3);
-  font-size: 0.875rem;
-  color: #f8fafc;
-  transition: all 0.2s ease;
-}
-
-.data-row {
-  transition: all 0.3s ease;
+  padding: 0.8rem 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--text);
 }
 
 .data-row:hover {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.4) 0%, rgba(51, 65, 85, 0.2) 100%);
-  transform: translateX(4px);
-  box-shadow: 4px 0 8px rgba(59, 130, 246, 0.1);
-}
-
-/* Statistics rows styling */
-.stats-row {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(51, 65, 85, 0.6) 100%);
-  border-top: 2px solid rgba(59, 130, 246, 0.3);
-  position: relative;
-}
-
-.stats-row::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(180deg, rgba(59, 130, 246, 0.8), rgba(139, 92, 246, 0.6));
-}
-
-.stats-row.avg-row {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(30, 41, 59, 0.8) 100%);
-  border-top: 2px solid rgba(59, 130, 246, 0.5);
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
-}
-
-.stats-row.avg-row::before {
-  background: linear-gradient(180deg, rgba(59, 130, 246, 1), rgba(139, 92, 246, 0.8));
-  width: 4px;
-}
-
-.stats-label {
-  color: #f8fafc;
-  font-weight: 600;
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.stats-value {
-  color: #3b82f6;
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.stats-cell {
-  color: #94a3b8;
-  font-style: italic;
-}
-
-.status-badge,
-.priority-badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.status-active {
-  background: #c6f6d5;
-  color: #22543d;
-}
-
-.status-pending {
-  background: #fef5e7;
-  color: #744210;
-}
-
-.status-inactive {
-  background: #fed7d7;
-  color: #742a2a;
-}
-
-.status-maintenance {
-  background: #fef5e7;
-  color: #744210;
-}
-
-.status-excellent {
-  background: #c6f6d5;
-  color: #22543d;
-}
-
-.status-optimal {
-  background: #bee3f8;
-  color: #2a4365;
-}
-
-.status-good {
-  background: #fef5e7;
-  color: #744210;
-}
-
-.status-warning {
-  background: #fef5e7;
-  color: #744210;
-}
-
-.status-critical {
-  background: #fed7d7;
-  color: #742a2a;
-}
-
-.priority-high {
-  background: #fed7d7;
-  color: #742a2a;
-}
-
-.priority-medium {
-  background: #fef5e7;
-  color: #744210;
-}
-
-.priority-low {
-  background: #c6f6d5;
-  color: #22543d;
-}
-
-.no-data {
-  text-align: center;
-  padding: 3rem;
-  color: #718096;
-}
-
-.value-cell {
-  font-weight: 600;
-  color: #2d3748;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .name-cell {
-  font-weight: 600;
-  color: #2d3748;
+  font-weight: 700;
+}
+
+.value-cell {
+  color: var(--text);
 }
 
 .temp-range {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.875rem;
+  gap: 0.35rem;
+  color: var(--muted);
 }
 
 .temp-min {
-  color: #3b82f6;
-  font-weight: 500;
-}
-
-.temp-separator {
-  color: #94a3b8;
-  font-weight: 400;
+  color: var(--muted);
 }
 
 .temp-max {
-  color: #ef4444;
-  font-weight: 500;
+  color: var(--text);
+  font-weight: 700;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .dashboard-content {
-    flex-direction: column;
-  }
-  
-  .sidebar {
-    width: 100%;
-    padding: 1rem;
-  }
-  
-  .sidebar-header h1 {
-    font-size: 1.5rem;
-  }
-  
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-  
-  .header-stats {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  
-  .header-stat {
-    min-width: 70px;
-    padding: 0.5rem 0.75rem;
-  }
-  
-  .header-stat-value {
-    font-size: 0.875rem;
-  }
-  
-  .main-content {
-    padding: 1rem;
-  }
-  
-  .cage-group-header {
-    padding: 1rem 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .cage-group-title {
-    font-size: 1.5rem;
-  }
-  
-  .cage-group-subtitle {
-    font-size: 0.9rem;
-  }
-  
-  .chart-stats-section {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  
-  .chart-section {
-    padding: 1rem;
-  }
-  
-  .stats-table-section {
-    padding: 1rem;
-  }
-  
-  .chart-container {
-    height: 250px;
-  }
-  
-  .line-chart {
-    max-width: 500px;
-  }
-  
-  .filters-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .tabs-container {
-    flex-direction: column;
-  }
-  
-  .tab-button {
-    justify-content: flex-start;
-    text-align: left;
-    border-bottom: none;
-    border-left: 3px solid transparent;
-  }
-  
-  .tab-button.active {
-    border-bottom-color: transparent;
-    border-left-color: #667eea;
-  }
-  
-  .data-table {
-    font-size: 0.75rem;
-  }
-  
-  .data-table th,
-  .data-table td {
-    padding: 0.5rem;
-  }
+.status-cell {
+  text-transform: capitalize;
 }
 
-@media (max-width: 480px) {
-  .header-stats {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .header-stat {
-    width: 100%;
-    min-width: auto;
-  }
-  
-  .chart-container {
-    height: 200px;
-  }
-  
-  .line-chart {
-    max-width: 400px;
-  }
-  
-  .value-label {
-    font-size: 0.7rem;
-  }
-  
-  .date-label {
-    font-size: 0.65rem;
-  }
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Graph Button Styles */
-.graph-btn {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  color: #6b7280;
+.status-optimal {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
 }
 
-.graph-btn:hover {
-  background-color: #374151;
-  color: #3b82f6;
-  transform: scale(1.1);
+.status-good {
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--accent);
+}
+
+.status-warning {
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--warning);
+}
+
+.status-critical {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
 }
 
 .action-cell {
-  text-align: center;
-  padding: 0.5rem;
+  text-align: right;
 }
 
-/* Modal Styles */
+.graph-btn {
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  color: var(--accent);
+  padding: 0.4rem 0.5rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.graph-btn:hover {
+  background: rgba(34, 211, 238, 0.2);
+}
+
+.export-section {
+  display: flex;
+  justify-content: flex-end;
+  margin: 1.4rem 0;
+}
+
+.export-button {
+  padding: 0.65rem 1rem;
+}
+
+.tabbed-tables-container + .export-section {
+  margin-top: 1.25rem;
+}
+
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
+  inset: 0;
+  background: rgba(6, 10, 20, 0.75);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 50;
 }
 
 .modal-content {
-  background: #1f2937;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 900px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: min(900px, 92vw);
   max-height: 90vh;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
 }
 
 .modal-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #374151;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .modal-header h3 {
   margin: 0;
-  color: #f9fafb;
-  font-size: 1.25rem;
-  font-weight: 600;
 }
 
 .modal-close-btn {
-  background: none;
+  background: transparent;
   border: none;
-  color: #9ca3af;
-  font-size: 1.5rem;
+  color: var(--muted);
+  font-size: 1.2rem;
   cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.modal-close-btn:hover {
-  background-color: #374151;
-  color: #f9fafb;
 }
 
 .modal-body {
-  padding: 1.5rem;
+  padding: 1rem 1.25rem 1.25rem;
 }
 
 .graph-container {
+  background: #0e1726;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 0.75rem;
   width: 100%;
   height: 400px;
 }
@@ -4092,21 +3390,48 @@ const getCapacityStatusClass = (status: string) => {
 }
 
 .axis-label {
-  fill: #9ca3af;
+  fill: var(--muted);
   font-size: 0.75rem;
-  font-family: 'Inter', sans-serif;
 }
 
 .y-axis-label {
-  fill: #6b7280;
-  font-size: 0.875rem;
-  font-family: 'Inter', sans-serif;
-  font-weight: 500;
+  fill: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .no-data {
   text-align: center;
   padding: 2rem;
-  color: #9ca3af;
+  color: var(--muted);
+}
+
+@media (max-width: 1200px) {
+  .dashboard-content {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: relative;
+    height: auto;
+    top: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .chart-stats-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .header-content {
+    grid-template-columns: 1fr;
+    padding: 1rem 1.25rem;
+  }
+
+  .main-content {
+    padding: 1.25rem;
+  }
 }
 </style>
