@@ -73,6 +73,9 @@ const dropdownOpen = ref({
 const exportDropdownOpen = ref(false)
 const exportDropdownOpenB = ref(false)
 const chartExportDropdownOpen = ref(false)
+const showCsvModal = ref(false)
+const csvModalTitle = ref('')
+const csvModalContent = ref('')
 
 // Graph modal state
 interface TimeSeriesPoint {
@@ -521,6 +524,159 @@ const showCapacityColumns = computed(() => {
   }
 })
 
+const averageField = (items: Array<Record<string, unknown>>, key: string) => {
+  const values = items
+    .map(item => Number(item[key]))
+    .filter(value => Number.isFinite(value))
+  if (!values.length) return 0
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+const sumNumericField = (items: Array<Record<string, unknown>>, key: string) => {
+  return items.reduce((sum, item) => {
+    const value = Number(item[key])
+    return sum + (Number.isFinite(value) ? value : 0)
+  }, 0)
+}
+
+const formatKw = (value: number | string) => {
+  const num = Number(value)
+  return `${Number.isFinite(num) ? num.toFixed(1) : '0.0'} kW`
+}
+
+const formatKwh = (value: number | string) => {
+  const num = Number(value)
+  return `${Number.isFinite(num) ? num.toFixed(1) : '0.0'} kWh`
+}
+
+const capacityTableSubtotal = computed(() => {
+  if (selectedAggregateLevel.value === 'Estate Level') {
+    const measured = sumNumericField(siteCapacityData.value, 'totalRacks')
+    const allocated = sumNumericField(siteCapacityData.value, 'usedRacks')
+    const reserved = sumNumericField(siteCapacityData.value, 'availableRacks')
+    const utilization = averageField(siteCapacityData.value as Array<Record<string, unknown>>, 'utilization')
+    return { measured, allocated, reserved, subtotal: measured, utilization }
+  }
+  if (selectedAggregateLevel.value === 'Site Level') {
+    const measured = sumNumericField(roomCapacityData.value, 'totalRacks')
+    const allocated = sumNumericField(roomCapacityData.value, 'usedRacks')
+    const reserved = sumNumericField(roomCapacityData.value, 'availableRacks')
+    const utilization = averageField(roomCapacityData.value as Array<Record<string, unknown>>, 'utilization')
+    return { measured, allocated, reserved, subtotal: measured, utilization }
+  }
+  const measured = sumNumericField(capacityData.value, 'used')
+  const allocated = capacityData.value.reduce((sum, item) => sum + Math.max((Number(item.used) || 0) * 0.9, 0), 0)
+  const reserved = capacityData.value.reduce((sum, item) => {
+    const total = Number(item.total) || 0
+    const used = Number(item.used) || 0
+    return sum + Math.max(total - used, 0)
+  }, 0)
+  const subtotal = sumNumericField(capacityData.value, 'total')
+  const utilization = averageField(capacityData.value as Array<Record<string, unknown>>, 'utilization')
+  return { measured, allocated, reserved, subtotal, utilization }
+})
+
+const thermalTableSubtotal = computed(() => {
+  let rows: Array<Record<string, unknown>> = []
+  if (selectedAggregateLevel.value === 'Estate Level') {
+    rows = siteThermalData.value
+    return {
+      minTemp: averageField(rows, 'minTemp'),
+      maxTemp: averageField(rows, 'maxTemp'),
+      avgTemp: averageField(rows, 'avgTemp'),
+      humidity: averageField(rows, 'humidity'),
+      outlet: averageField(rows, 'outletTemp')
+    }
+  }
+  if (selectedAggregateLevel.value === 'Site Level') {
+    rows = roomThermalData.value
+    return {
+      minTemp: averageField(rows, 'minTemp'),
+      maxTemp: averageField(rows, 'maxTemp'),
+      avgTemp: averageField(rows, 'avgTemp'),
+      humidity: averageField(rows, 'humidity'),
+      outlet: averageField(rows, 'outletTemp')
+    }
+  }
+  rows = thermalData.value
+  return {
+    minTemp: averageField(rows, 'minTemp'),
+    maxTemp: averageField(rows, 'maxTemp'),
+    avgTemp: averageField(rows, 'avgTemp'),
+    humidity: averageField(rows, 'humidity'),
+    outlet: averageField(rows, 'outletT')
+  }
+})
+
+const powerTableSubtotal = computed(() => {
+  if (selectedAggregateLevel.value === 'Estate Level') {
+    const totalPower = sumNumericField(sitePowerData.value, 'totalPower')
+    const totalEnergy = sumNumericField(sitePowerData.value, 'energy')
+    return {
+      power: `${totalPower.toFixed(1)}kW`,
+      energy: formatKwh(totalEnergy),
+      voltage: averageField(sitePowerData.value, 'voltage'),
+      current: averageField(sitePowerData.value, 'current')
+    }
+  }
+  if (selectedAggregateLevel.value === 'Site Level') {
+    const totalPower = sumNumericField(roomPowerData.value, 'totalPower')
+    const totalEnergy = sumNumericField(roomPowerData.value, 'energy')
+    return {
+      power: `${totalPower.toFixed(1)}kW`,
+      energy: formatKwh(totalEnergy),
+      voltage: averageField(roomPowerData.value, 'voltage'),
+      current: averageField(roomPowerData.value, 'current')
+    }
+  }
+  const totalPower = sumNumericField(powerData.value, 'power')
+  const totalEnergy = sumNumericField(powerData.value, 'energy')
+  return {
+    power: `${totalPower.toFixed(1)}kW`,
+    energy: formatKwh(totalEnergy),
+    voltage: averageField(powerData.value, 'voltage'),
+    current: averageField(powerData.value, 'current')
+  }
+})
+
+const powerTableSubtotalB = computed(() => {
+  const totalPower = sumNumericField(powerDataB.value, 'power')
+  const totalEnergy = sumNumericField(powerDataB.value, 'energy')
+  const loadAverage = powerDataB.value.length
+    ? powerDataB.value.reduce((sum, item) => sum + (Number(item.load) || 0), 0) / powerDataB.value.length
+    : 0
+  return {
+    power: `${totalPower.toFixed(1)}kW`,
+    load: `${loadAverage.toFixed(0)}%`,
+    voltage: averageField(powerDataB.value, 'voltage'),
+    current: averageField(powerDataB.value, 'current'),
+    energy: formatKwh(totalEnergy)
+  }
+})
+
+const thermalTableSubtotalB = computed(() => {
+  return {
+    minTemp: averageField(thermalDataB.value, 'minTemp'),
+    maxTemp: averageField(thermalDataB.value, 'maxTemp'),
+    avgTemp: averageField(thermalDataB.value, 'avgTemp'),
+    humidity: averageField(thermalDataB.value, 'humidity'),
+    outlet: averageField(thermalDataB.value, 'outletT')
+  }
+})
+
+const capacityTableSubtotalB = computed(() => {
+  const measured = sumNumericField(capacityDataB.value, 'used')
+  const allocated = capacityDataB.value.reduce((sum, item) => sum + Math.max((Number(item.used) || 0) * 0.9, 0), 0)
+  const reserved = capacityDataB.value.reduce((sum, item) => {
+    const total = Number(item.total) || 0
+    const used = Number(item.used) || 0
+    return sum + Math.max(total - used, 0)
+  }, 0)
+  const subtotal = sumNumericField(capacityDataB.value, 'total')
+  const utilization = averageField(capacityDataB.value as Array<Record<string, unknown>>, 'utilization')
+  return { measured, allocated, reserved, subtotal, utilization }
+})
+
 // Chart title based on selected datatype
 const chartTitle = computed(() => {
   return `${selectedChartDatatype.value} Trends by Cage`
@@ -611,26 +767,26 @@ const thermalDataB = ref([
 
 // DFM1 - Power data
 const powerData = ref([
-  { id: 1, circuit: 'PDU-01', rack: 'RACK-A01', grid: 'A', voltage: 208, current: 15.2, power: 3.2, load: 85, pue: 1.45, status: 'good' },
-  { id: 2, circuit: 'PDU-02', rack: 'RACK-B02', grid: 'B', voltage: 208, current: 13.8, power: 2.9, load: 72, pue: 1.38, status: 'good' },
-  { id: 3, circuit: 'PDU-03', rack: 'RACK-C03', grid: 'C', voltage: 208, current: 2.1, power: 0.4, load: 15, pue: 1.25, status: 'maintenance' },
-  { id: 4, circuit: 'PDU-04', rack: 'RACK-D04', grid: 'D', voltage: 208, current: 19.7, power: 4.1, load: 92, pue: 1.52, status: 'warning' },
-  { id: 5, circuit: 'PDU-05', rack: 'RACK-E05', grid: 'E', voltage: 208, current: 17.8, power: 3.7, load: 78, pue: 1.48, status: 'good' },
-  { id: 6, circuit: 'PDU-06', rack: 'RACK-F06', grid: 'F', voltage: 208, current: 14.0, power: 2.9, load: 65, pue: 1.35, status: 'good' },
-  { id: 7, circuit: 'PDU-07', rack: 'RACK-A01', grid: 'A', voltage: 208, current: 16.8, power: 3.5, load: 88, pue: 1.42, status: 'good' },
-  { id: 8, circuit: 'PDU-08', rack: 'RACK-B02', grid: 'B', voltage: 208, current: 1.0, power: 0.2, load: 5, pue: 1.15, status: 'inactive' }
+  { id: 1, circuit: 'PDU-01', rack: 'RACK-A01', grid: 'A', voltage: 208, current: 15.2, power: 3.2, load: 85, pue: 1.45, status: 'good', energy: 24 },
+  { id: 2, circuit: 'PDU-02', rack: 'RACK-B02', grid: 'B', voltage: 208, current: 13.8, power: 2.9, load: 72, pue: 1.38, status: 'good', energy: 21 },
+  { id: 3, circuit: 'PDU-03', rack: 'RACK-C03', grid: 'C', voltage: 208, current: 2.1, power: 0.4, load: 15, pue: 1.25, status: 'maintenance', energy: 8 },
+  { id: 4, circuit: 'PDU-04', rack: 'RACK-D04', grid: 'D', voltage: 208, current: 19.7, power: 4.1, load: 92, pue: 1.52, status: 'warning', energy: 28 },
+  { id: 5, circuit: 'PDU-05', rack: 'RACK-E05', grid: 'E', voltage: 208, current: 17.8, power: 3.7, load: 78, pue: 1.48, status: 'good', energy: 25 },
+  { id: 6, circuit: 'PDU-06', rack: 'RACK-F06', grid: 'F', voltage: 208, current: 14.0, power: 2.9, load: 65, pue: 1.35, status: 'good', energy: 22 },
+  { id: 7, circuit: 'PDU-07', rack: 'RACK-A01', grid: 'A', voltage: 208, current: 16.8, power: 3.5, load: 88, pue: 1.42, status: 'good', energy: 26 },
+  { id: 8, circuit: 'PDU-08', rack: 'RACK-B02', grid: 'B', voltage: 208, current: 1.0, power: 0.2, load: 5, pue: 1.15, status: 'inactive', energy: 9 }
 ])
 
 // DFM2 - Power data
 const powerDataB = ref([
-  { id: 1, circuit: 'PDU-G01', rack: 'RACK-G01', grid: 'G', voltage: 208, current: 14.8, power: 3.1, load: 83, pue: 1.43, status: 'good' },
-  { id: 2, circuit: 'PDU-H02', rack: 'RACK-H02', grid: 'H', voltage: 208, current: 13.2, power: 2.7, load: 70, pue: 1.36, status: 'good' },
-  { id: 3, circuit: 'PDU-I03', rack: 'RACK-I03', grid: 'I', voltage: 208, current: 2.3, power: 0.5, load: 18, pue: 1.22, status: 'maintenance' },
-  { id: 4, circuit: 'PDU-J04', rack: 'RACK-J04', grid: 'J', voltage: 208, current: 18.9, power: 3.9, load: 89, pue: 1.51, status: 'warning' },
-  { id: 5, circuit: 'PDU-K05', rack: 'RACK-K05', grid: 'K', voltage: 208, current: 16.5, power: 3.4, load: 75, pue: 1.46, status: 'good' },
-  { id: 6, circuit: 'PDU-L06', rack: 'RACK-L06', grid: 'L', voltage: 208, current: 13.8, power: 2.9, load: 63, pue: 1.33, status: 'good' },
-  { id: 7, circuit: 'PDU-M07', rack: 'RACK-G01', grid: 'G', voltage: 208, current: 15.9, power: 3.3, load: 85, pue: 1.40, status: 'good' },
-  { id: 8, circuit: 'PDU-N08', rack: 'RACK-H02', grid: 'H', voltage: 208, current: 1.2, power: 0.3, load: 7, pue: 1.12, status: 'inactive' }
+  { id: 1, circuit: 'PDU-G01', rack: 'RACK-G01', grid: 'G', voltage: 208, current: 14.8, power: 3.1, load: 83, pue: 1.43, status: 'good', energy: 23 },
+  { id: 2, circuit: 'PDU-H02', rack: 'RACK-H02', grid: 'H', voltage: 208, current: 13.2, power: 2.7, load: 70, pue: 1.36, status: 'good', energy: 20 },
+  { id: 3, circuit: 'PDU-I03', rack: 'RACK-I03', grid: 'I', voltage: 208, current: 2.3, power: 0.5, load: 18, pue: 1.22, status: 'maintenance', energy: 7 },
+  { id: 4, circuit: 'PDU-J04', rack: 'RACK-J04', grid: 'J', voltage: 208, current: 18.9, power: 3.9, load: 89, pue: 1.51, status: 'warning', energy: 27 },
+  { id: 5, circuit: 'PDU-K05', rack: 'RACK-K05', grid: 'K', voltage: 208, current: 16.5, power: 3.4, load: 75, pue: 1.46, status: 'good', energy: 24 },
+  { id: 6, circuit: 'PDU-L06', rack: 'RACK-L06', grid: 'L', voltage: 208, current: 13.8, power: 2.9, load: 63, pue: 1.33, status: 'good', energy: 21 },
+  { id: 7, circuit: 'PDU-M07', rack: 'RACK-G01', grid: 'G', voltage: 208, current: 15.9, power: 3.3, load: 85, pue: 1.40, status: 'good', energy: 25 },
+  { id: 8, circuit: 'PDU-N08', rack: 'RACK-H02', grid: 'H', voltage: 208, current: 1.2, power: 0.3, load: 7, pue: 1.12, status: 'inactive', energy: 8 }
 ])
 
 // DFM1 - Capacity data
@@ -662,10 +818,10 @@ const siteThermalData = ref([
 ])
 
 const sitePowerData = ref([
-  { id: 1, site: 'Data Center 1', totalPower: 45.2, avgPower: 42.8, peakPower: 48.1, utilization: 85, pue: 1.42, status: 'good' },
-  { id: 2, site: 'Data Center 2', totalPower: 38.7, avgPower: 36.2, peakPower: 41.5, utilization: 78, pue: 1.38, status: 'good' },
-  { id: 3, site: 'Data Center 3', totalPower: 52.1, avgPower: 48.9, peakPower: 55.3, utilization: 92, pue: 1.48, status: 'warning' },
-  { id: 4, site: 'Remote Site', totalPower: 41.3, avgPower: 39.1, peakPower: 44.2, utilization: 81, pue: 1.35, status: 'good' }
+  { id: 1, site: 'Data Center 1', totalPower: 45.2, avgPower: 42.8, peakPower: 48.1, utilization: 85, pue: 1.42, status: 'good', voltage: 415, current: 98, energy: 1080 },
+  { id: 2, site: 'Data Center 2', totalPower: 38.7, avgPower: 36.2, peakPower: 41.5, utilization: 78, pue: 1.38, status: 'good', voltage: 413, current: 86, energy: 930 },
+  { id: 3, site: 'Data Center 3', totalPower: 52.1, avgPower: 48.9, peakPower: 55.3, utilization: 92, pue: 1.48, status: 'warning', voltage: 418, current: 112, energy: 1240 },
+  { id: 4, site: 'Remote Site', totalPower: 41.3, avgPower: 39.1, peakPower: 44.2, utilization: 81, pue: 1.35, status: 'good', voltage: 410, current: 90, energy: 990 }
 ])
 
 const siteCapacityData = ref([
@@ -685,11 +841,11 @@ const roomThermalData = ref([
 ])
 
 const roomPowerData = ref([
-  { id: 1, room: 'Floor 1', totalPower: 45.2, avgPower: 42.8, peakPower: 48.1, utilization: 85, pue: 1.44, status: 'good' },
-  { id: 2, room: 'Floor 2', totalPower: 38.7, avgPower: 36.2, peakPower: 41.5, utilization: 78, pue: 1.39, status: 'good' },
-  { id: 3, room: 'Floor 3', totalPower: 52.1, avgPower: 48.9, peakPower: 55.3, utilization: 92, pue: 1.47, status: 'warning' },
-  { id: 4, room: 'Floor 4', totalPower: 41.3, avgPower: 39.1, peakPower: 44.2, utilization: 81, pue: 1.36, status: 'good' },
-  { id: 5, room: 'Floor 5', totalPower: 47.8, avgPower: 44.6, peakPower: 51.2, utilization: 88, pue: 1.41, status: 'good' }
+  { id: 1, room: 'Floor 1', totalPower: 45.2, avgPower: 42.8, peakPower: 48.1, utilization: 85, pue: 1.44, status: 'good', voltage: 208, current: 102, energy: 240 },
+  { id: 2, room: 'Floor 2', totalPower: 38.7, avgPower: 36.2, peakPower: 41.5, utilization: 78, pue: 1.39, status: 'good', voltage: 208, current: 88, energy: 210 },
+  { id: 3, room: 'Floor 3', totalPower: 52.1, avgPower: 48.9, peakPower: 55.3, utilization: 92, pue: 1.47, status: 'warning', voltage: 208, current: 118, energy: 275 },
+  { id: 4, room: 'Floor 4', totalPower: 41.3, avgPower: 39.1, peakPower: 44.2, utilization: 81, pue: 1.36, status: 'good', voltage: 208, current: 94, energy: 225 },
+  { id: 5, room: 'Floor 5', totalPower: 47.8, avgPower: 44.6, peakPower: 51.2, utilization: 88, pue: 1.41, status: 'good', voltage: 208, current: 108, energy: 260 }
 ])
 
 const roomCapacityData = ref([
@@ -949,11 +1105,9 @@ const exportToCSV = () => {
     )
   ].join('\n')
   
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = `${activeTab.value}_data.csv`
-  link.click()
+  csvModalTitle.value = `${activeTab.value.toUpperCase()} CSV Preview`
+  csvModalContent.value = csvContent
+  showCsvModal.value = true
   exportDropdownOpen.value = false
 }
 
@@ -1064,11 +1218,9 @@ const exportToCSVB = () => {
     )
   ].join('\n')
   
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = `cage_b_${activeTabB.value}_data.csv`
-  link.click()
+  csvModalTitle.value = `CAGE B ${activeTabB.value.toUpperCase()} CSV Preview`
+  csvModalContent.value = csvContent
+  showCsvModal.value = true
   exportDropdownOpenB.value = false
 }
 
@@ -1161,11 +1313,9 @@ const exportChartToCSV = () => {
     ].join(','))
   ].join('\n')
   
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = `chart_${selectedChartDatatype.value.toLowerCase()}_data.csv`
-  link.click()
+  csvModalTitle.value = `CHART ${selectedChartDatatype.value.toUpperCase()} CSV Preview`
+  csvModalContent.value = csvContent
+  showCsvModal.value = true
   chartExportDropdownOpen.value = false
 }
 
@@ -1257,6 +1407,12 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
+
+const closeCsvModal = () => {
+  showCsvModal.value = false
+  csvModalContent.value = ''
+  csvModalTitle.value = ''
+}
 
 
 const getThermalStatusClass = (status: string) => {
@@ -1698,11 +1854,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.dataResolution }"
               >
-                {{ getDropdownLabel('dataResolution', selectedDataResolution, ['5 min aggregate', '15 min aggregate', 'Daily']) }}
+                {{ getDropdownLabel('dataResolution', selectedDataResolution, ['5 min aggregate', '15 min aggregate', 'Hourly aggregate', 'Daily']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.dataResolution" class="dropdown-content">
-                <label v-for="option in ['5 min aggregate', '15 min aggregate', 'Daily']" :key="option" class="checkbox-item">
+                <label v-for="option in ['5 min aggregate', '15 min aggregate', 'Hourly aggregate', 'Daily']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -2049,6 +2205,57 @@ const getCapacityStatusClass = (status: string) => {
                   </td>
                 </tr>
                 </template>
+                <tr v-if="selectedAggregateLevel === 'Estate Level'" class="subtotal-row">
+                  <td class="name-cell subtotal-label">Subtotal</td>
+                  <td class="name-cell">-</td>
+                  <td v-if="showThermalColumns.temperature" class="value-cell">
+                    <div class="temp-range">
+                      <span class="temp-min">{{ thermalTableSubtotal.minTemp.toFixed(1) }}°C</span>
+                      <span class="temp-separator">-</span>
+                      <span class="temp-max">{{ thermalTableSubtotal.maxTemp.toFixed(1) }}°C</span>
+                    </div>
+                  </td>
+                  <td v-if="showThermalColumns.temperature" class="value-cell">{{ thermalTableSubtotal.avgTemp.toFixed(1) }}°C</td>
+                  <td v-if="showThermalColumns.humidity" class="value-cell">{{ thermalTableSubtotal.humidity.toFixed(1) }}%</td>
+                  <td v-if="showThermalColumns.dewPoint" class="value-cell">N/A</td>
+                  <td v-if="showThermalColumns.outletT" class="value-cell">{{ thermalTableSubtotal.outlet.toFixed(1) }}°C</td>
+                  <td v-if="showThermalColumns.compliance" class="status-cell">-</td>
+                  <td class="action-cell">-</td>
+                </tr>
+                <tr v-else-if="selectedAggregateLevel === 'Site Level'" class="subtotal-row">
+                  <td class="name-cell subtotal-label">Subtotal</td>
+                  <td class="name-cell">-</td>
+                  <td v-if="showThermalColumns.temperature" class="value-cell">
+                    <div class="temp-range">
+                      <span class="temp-min">{{ thermalTableSubtotal.minTemp.toFixed(1) }}°C</span>
+                      <span class="temp-separator">-</span>
+                      <span class="temp-max">{{ thermalTableSubtotal.maxTemp.toFixed(1) }}°C</span>
+                    </div>
+                  </td>
+                  <td v-if="showThermalColumns.temperature" class="value-cell">{{ thermalTableSubtotal.avgTemp.toFixed(1) }}°C</td>
+                  <td v-if="showThermalColumns.humidity" class="value-cell">{{ thermalTableSubtotal.humidity.toFixed(1) }}%</td>
+                  <td v-if="showThermalColumns.dewPoint" class="value-cell">N/A</td>
+                  <td v-if="showThermalColumns.outletT" class="value-cell">{{ thermalTableSubtotal.outlet.toFixed(1) }}°C</td>
+                  <td v-if="showThermalColumns.compliance" class="status-cell">-</td>
+                  <td class="action-cell">-</td>
+                </tr>
+                <tr v-else class="subtotal-row">
+                  <td class="name-cell subtotal-label">Subtotal</td>
+                  <td class="name-cell">-</td>
+                  <td v-if="showThermalColumns.temperature" class="value-cell">
+                    <div class="temp-range">
+                      <span class="temp-min">{{ thermalTableSubtotal.minTemp.toFixed(1) }}°C</span>
+                      <span class="temp-separator">-</span>
+                      <span class="temp-max">{{ thermalTableSubtotal.maxTemp.toFixed(1) }}°C</span>
+                    </div>
+                  </td>
+                  <td v-if="showThermalColumns.temperature" class="value-cell">{{ thermalTableSubtotal.avgTemp.toFixed(1) }}°C</td>
+                  <td v-if="showThermalColumns.humidity" class="value-cell">{{ thermalTableSubtotal.humidity.toFixed(1) }}%</td>
+                  <td v-if="showThermalColumns.dewPoint" class="value-cell">N/A</td>
+                  <td v-if="showThermalColumns.outletT" class="value-cell">{{ thermalTableSubtotal.outlet.toFixed(1) }}°C</td>
+                  <td v-if="showThermalColumns.compliance" class="status-cell">-</td>
+                  <td class="action-cell">-</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -2062,8 +2269,8 @@ const getCapacityStatusClass = (status: string) => {
                 <tr>
                   <th>{{ selectedAggregateLevel === 'Estate Level' ? 'Site' : selectedAggregateLevel === 'Site Level' ? 'Room' : 'Rack Label' }}</th>
                   <th>{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Grid' }}</th>
-                  <th v-if="showPowerColumns.voltage">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Voltage' }}</th>
-                  <th v-if="showPowerColumns.amps">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Current' }}</th>
+                  <th v-if="showPowerColumns.voltage">{{ selectedAggregateLevel === 'Estate Level' ? 'Voltage' : selectedAggregateLevel === 'Site Level' ? 'Voltage' : 'Voltage' }}</th>
+                  <th v-if="showPowerColumns.amps">{{ selectedAggregateLevel === 'Estate Level' ? 'Current' : selectedAggregateLevel === 'Site Level' ? 'Current' : 'Current' }}</th>
                   <th v-if="showPowerColumns.power">{{ selectedAggregateLevel === 'Estate Level' ? 'Total Power' : selectedAggregateLevel === 'Site Level' ? 'Total Power' : 'Power' }}</th>
                   <th v-if="showPowerColumns.energy">Energy</th>
                   <th>Graph</th>
@@ -2075,8 +2282,10 @@ const getCapacityStatusClass = (status: string) => {
                   <tr v-for="site in sitePowerData" :key="site.id" class="data-row">
                     <td class="name-cell">{{ site.site }}</td>
                     <td class="name-cell">-</td>
+                    <td v-if="showPowerColumns.voltage" class="value-cell">{{ site.voltage }}V</td>
+                    <td v-if="showPowerColumns.amps" class="value-cell">{{ site.current }}A</td>
                     <td v-if="showPowerColumns.power" class="value-cell">{{ site.totalPower }}kW</td>
-                    <td v-if="showPowerColumns.energy" class="value-cell">N/A</td>
+                    <td v-if="showPowerColumns.energy" class="value-cell">{{ formatKwh(site.energy) }}</td>
                     <td class="action-cell">
                       <button @click="showGraph(site, 'power')" class="graph-btn" title="View Time Series Graph">
                         📊
@@ -2089,8 +2298,10 @@ const getCapacityStatusClass = (status: string) => {
                   <tr v-for="room in roomPowerData" :key="room.id" class="data-row">
                     <td class="name-cell">{{ room.room }}</td>
                     <td class="name-cell">-</td>
+                    <td v-if="showPowerColumns.voltage" class="value-cell">{{ room.voltage }}V</td>
+                    <td v-if="showPowerColumns.amps" class="value-cell">{{ room.current }}A</td>
                     <td v-if="showPowerColumns.power" class="value-cell">{{ room.totalPower }}kW</td>
-                    <td v-if="showPowerColumns.energy" class="value-cell">N/A</td>
+                    <td v-if="showPowerColumns.energy" class="value-cell">{{ formatKwh(room.energy) }}</td>
                     <td class="action-cell">
                       <button @click="showGraph(room, 'power')" class="graph-btn" title="View Time Series Graph">
                         📊
@@ -2106,7 +2317,7 @@ const getCapacityStatusClass = (status: string) => {
                   <td v-if="showPowerColumns.voltage" class="value-cell">{{ power.voltage }}V</td>
                   <td v-if="showPowerColumns.amps" class="value-cell">{{ power.current }}A</td>
                   <td v-if="showPowerColumns.power" class="value-cell">{{ power.power }}kW</td>
-                  <td v-if="showPowerColumns.energy" class="value-cell">N/A</td>
+                  <td v-if="showPowerColumns.energy" class="value-cell">{{ formatKwh(power.energy) }}</td>
                     <td class="action-cell">
                       <button @click="showGraph(power, 'power')" class="graph-btn" title="View Time Series Graph">
                         📊
@@ -2114,6 +2325,15 @@ const getCapacityStatusClass = (status: string) => {
                   </td>
                 </tr>
                 </template>
+                <tr class="subtotal-row">
+                  <td class="name-cell subtotal-label">Subtotal</td>
+                  <td class="name-cell">-</td>
+                  <td v-if="showPowerColumns.voltage" class="value-cell">{{ powerTableSubtotal.voltage.toFixed(1) }}V</td>
+                  <td v-if="showPowerColumns.amps" class="value-cell">{{ powerTableSubtotal.current.toFixed(1) }}A</td>
+                  <td v-if="showPowerColumns.power" class="value-cell">{{ powerTableSubtotal.power }}</td>
+                  <td v-if="showPowerColumns.energy" class="value-cell">{{ powerTableSubtotal.energy }}</td>
+                  <td class="action-cell">-</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -2127,9 +2347,10 @@ const getCapacityStatusClass = (status: string) => {
                 <tr>
                   <th>{{ selectedAggregateLevel === 'Estate Level' ? 'Site' : selectedAggregateLevel === 'Site Level' ? 'Room' : 'Rack Label' }}</th>
                   <th>{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Grid' }}</th>
-                  <th v-if="showCapacityColumns.measured">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Measured' }}</th>
-                  <th v-if="showCapacityColumns.allocated">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Allocated' }}</th>
-                  <th v-if="showCapacityColumns.reserved">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Reserved' }}</th>
+                  <th v-if="showCapacityColumns.measured">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Measured (kW)' }}</th>
+                  <th v-if="showCapacityColumns.allocated">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Allocated (kW)' }}</th>
+                  <th v-if="showCapacityColumns.reserved">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Reserved (kW)' }}</th>
+                  <th v-if="selectedAggregateLevel === 'Room Level'">Subtotal (kW)</th>
                   <th v-if="showCapacityColumns.space">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Space' }}</th>
                   <th>Graph</th>
                 </tr>
@@ -2172,9 +2393,10 @@ const getCapacityStatusClass = (status: string) => {
                 <tr v-for="capacity in capacityData" :key="capacity.id" class="data-row">
                     <td class="name-cell">{{ capacity.rack }}</td>
                     <td class="name-cell">{{ capacity.grid }}</td>
-                  <td class="value-cell">{{ capacity.used }} {{ capacity.unit }}</td>
-                  <td class="value-cell">{{ Math.max(capacity.used * 0.9, 0).toFixed(1) }} {{ capacity.unit }}</td>
-                  <td v-if="showCapacityColumns.reserved" class="value-cell">{{ capacity.total - capacity.used }} {{ capacity.unit }}</td>
+                  <td class="value-cell">{{ formatKw(capacity.used) }}</td>
+                  <td class="value-cell">{{ formatKw(Math.max(capacity.used * 0.9, 0)) }}</td>
+                  <td v-if="showCapacityColumns.reserved" class="value-cell">{{ formatKw(capacity.total - capacity.used) }}</td>
+                  <td v-if="selectedAggregateLevel === 'Room Level'" class="value-cell">{{ formatKw(capacity.total) }}</td>
                   <td v-if="showCapacityColumns.space" class="value-cell">{{ capacity.utilization }}%</td>
                     <td class="action-cell">
                       <button @click="showGraph(capacity, 'capacity')" class="graph-btn" title="View Time Series Graph">
@@ -2183,6 +2405,37 @@ const getCapacityStatusClass = (status: string) => {
                   </td>
                 </tr>
                 </template>
+                <tr class="subtotal-row">
+                  <td class="name-cell subtotal-label">Subtotal</td>
+                  <td class="name-cell">-</td>
+                  <td v-if="showCapacityColumns.measured" class="value-cell">
+                    <template v-if="selectedAggregateLevel === 'Room Level'">
+                      {{ formatKw(capacityTableSubtotal.measured) }}
+                    </template>
+                    <template v-else>
+                      {{ capacityTableSubtotal.measured }} racks
+                    </template>
+                  </td>
+                  <td v-if="showCapacityColumns.allocated" class="value-cell">
+                    <template v-if="selectedAggregateLevel === 'Room Level'">
+                      {{ formatKw(capacityTableSubtotal.allocated) }}
+                    </template>
+                    <template v-else>
+                      {{ capacityTableSubtotal.allocated }} racks
+                    </template>
+                  </td>
+                  <td v-if="showCapacityColumns.reserved" class="value-cell">
+                    <template v-if="selectedAggregateLevel === 'Room Level'">
+                      {{ formatKw(capacityTableSubtotal.reserved) }}
+                    </template>
+                    <template v-else>
+                      {{ capacityTableSubtotal.reserved }} racks
+                    </template>
+                  </td>
+                  <td v-if="selectedAggregateLevel === 'Room Level'" class="value-cell">{{ formatKw(capacityTableSubtotal.subtotal) }}</td>
+                  <td v-if="showCapacityColumns.space" class="value-cell">{{ capacityTableSubtotal.utilization.toFixed(1) }}%</td>
+                  <td class="action-cell">-</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -2397,6 +2650,22 @@ const getCapacityStatusClass = (status: string) => {
                     </button>
                   </td>
                 </tr>
+                <tr class="subtotal-row">
+                  <td class="name-cell subtotal-label">Subtotal</td>
+                  <td class="name-cell">-</td>
+                  <td class="value-cell">
+                    <div class="temp-range">
+                      <span class="temp-min">{{ thermalTableSubtotalB.minTemp.toFixed(1) }}°C</span>
+                      <span class="temp-separator">-</span>
+                      <span class="temp-max">{{ thermalTableSubtotalB.maxTemp.toFixed(1) }}°C</span>
+                    </div>
+                  </td>
+                  <td class="value-cell">{{ thermalTableSubtotalB.avgTemp.toFixed(1) }}°C</td>
+                  <td class="value-cell">{{ thermalTableSubtotalB.humidity.toFixed(1) }}%</td>
+                  <td class="value-cell">{{ thermalTableSubtotalB.outlet.toFixed(1) }}°C</td>
+                  <td class="status-cell">-</td>
+                  <td class="action-cell">-</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -2431,6 +2700,15 @@ const getCapacityStatusClass = (status: string) => {
                     </button>
                   </td>
                 </tr>
+                <tr class="subtotal-row">
+                  <td class="name-cell subtotal-label">Subtotal</td>
+                  <td class="name-cell">-</td>
+                  <td class="value-cell">{{ powerTableSubtotalB.voltage.toFixed(1) }}V</td>
+                  <td class="value-cell">{{ powerTableSubtotalB.current.toFixed(1) }}A</td>
+                  <td class="value-cell">{{ powerTableSubtotalB.power }}</td>
+                  <td class="value-cell">{{ powerTableSubtotalB.load }}</td>
+                  <td class="action-cell">-</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -2444,9 +2722,10 @@ const getCapacityStatusClass = (status: string) => {
                 <tr>
                   <th>Rack Label</th>
                   <th>Grid</th>
-                  <th>Measured</th>
-                  <th>Allocated</th>
-                  <th>Reserved</th>
+                  <th>Measured (kW)</th>
+                  <th>Allocated (kW)</th>
+                  <th>Reserved (kW)</th>
+                  <th>Subtotal (kW)</th>
                   <th>Space</th>
                   <th>Graph</th>
                 </tr>
@@ -2455,15 +2734,26 @@ const getCapacityStatusClass = (status: string) => {
                 <tr v-for="capacity in capacityDataB" :key="capacity.id" class="data-row">
                   <td class="name-cell">{{ capacity.rack }}</td>
                   <td class="name-cell">{{ capacity.grid }}</td>
-                  <td class="value-cell">{{ capacity.used }} {{ capacity.unit }}</td>
-                  <td class="value-cell">{{ Math.max(capacity.used * 0.9, 0).toFixed(1) }} {{ capacity.unit }}</td>
-                  <td class="value-cell">{{ capacity.total - capacity.used }} {{ capacity.unit }}</td>
+                  <td class="value-cell">{{ formatKw(capacity.used) }}</td>
+                  <td class="value-cell">{{ formatKw(Math.max(capacity.used * 0.9, 0)) }}</td>
+                  <td class="value-cell">{{ formatKw(capacity.total - capacity.used) }}</td>
+                  <td class="value-cell">{{ formatKw(capacity.total) }}</td>
                   <td class="value-cell">{{ capacity.utilization }}%</td>
                   <td class="action-cell">
                     <button @click="showGraph(capacity, 'capacity')" class="graph-btn" title="View Time Series Graph">
                       📊
                     </button>
                   </td>
+                </tr>
+                <tr class="subtotal-row">
+                  <td class="name-cell subtotal-label">Subtotal</td>
+                  <td class="name-cell">-</td>
+                  <td class="value-cell">{{ formatKw(capacityTableSubtotalB.measured) }}</td>
+                  <td class="value-cell">{{ formatKw(capacityTableSubtotalB.allocated) }}</td>
+                  <td class="value-cell">{{ formatKw(capacityTableSubtotalB.reserved) }}</td>
+                  <td class="value-cell">{{ formatKw(capacityTableSubtotalB.subtotal) }}</td>
+                  <td class="value-cell">{{ capacityTableSubtotalB.utilization.toFixed(1) }}%</td>
+                  <td class="action-cell">-</td>
                 </tr>
               </tbody>
             </table>
@@ -2617,6 +2907,19 @@ const getCapacityStatusClass = (status: string) => {
         <div v-else class="no-data">
           <p>No time series data available</p>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV Preview Modal -->
+  <div v-if="showCsvModal" class="modal-overlay" @click="closeCsvModal">
+    <div class="modal-content" @click.stop>
+      <div class="modal-header">
+        <h3>{{ csvModalTitle || 'CSV Preview' }}</h3>
+        <button @click="closeCsvModal" class="modal-close-btn">×</button>
+      </div>
+      <div class="modal-body">
+        <pre class="csv-preview">{{ csvModalContent }}</pre>
       </div>
     </div>
   </div>
@@ -3240,6 +3543,20 @@ const getCapacityStatusClass = (status: string) => {
   background: rgba(255, 255, 255, 0.02);
 }
 
+.subtotal-row {
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 700;
+}
+
+.subtotal-row td {
+  border-top: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.subtotal-label {
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
 .name-cell {
   font-weight: 700;
 }
@@ -3373,6 +3690,17 @@ const getCapacityStatusClass = (status: string) => {
 
 .modal-body {
   padding: 1rem 1.25rem 1.25rem;
+}
+
+.csv-preview {
+  white-space: pre-wrap;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: var(--text);
 }
 
 .graph-container {
