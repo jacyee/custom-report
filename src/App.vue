@@ -19,14 +19,14 @@ interface DataItem {
 }
 
 const data = ref<DataItem[]>([
-  { id: 1, name: 'Rack A-01', category: 'Development', status: 'active', value: 15000, date: '2024-01-15', priority: 'high', customer: 'Acme Corp', site: 'Data Center 1', room: 'Floor 1', cage: 'DFM1', itemType: 'rack', dataType: 'Power' },
-  { id: 2, name: 'Rack A-02', category: 'Marketing', status: 'pending', value: 8500, date: '2024-01-20', priority: 'medium', customer: 'Tech Solutions', site: 'Data Center 2', room: 'Floor 2', cage: 'DFM2', itemType: 'ambient orb', dataType: 'Temperature' },
-  { id: 3, name: 'Rack B-01', category: 'Sales', status: 'active', value: 22000, date: '2024-01-10', priority: 'high', customer: 'Data Systems', site: 'Data Center 1', room: 'Floor 3', cage: 'DFM3', itemType: 'cooling', dataType: 'Humidity' },
-  { id: 4, name: 'Rack B-02', category: 'Development', status: 'inactive', value: 12000, date: '2024-01-05', priority: 'low', customer: 'Cloud Services', site: 'Data Center 3', room: 'Floor 4', cage: 'Rack Group 1', itemType: 'power', dataType: 'Airflow' },
-  { id: 5, name: 'Rack C-01', category: 'Marketing', status: 'active', value: 18000, date: '2024-01-25', priority: 'medium', customer: 'Acme Corp', site: 'Remote Site', room: 'Floor 5', cage: 'Rack Group 2', itemType: 'cooling', dataType: 'Utilization' },
-  { id: 6, name: 'Rack C-02', category: 'Sales', status: 'pending', value: 9500, date: '2024-01-18', priority: 'high', customer: 'Tech Solutions', site: 'Data Center 2', room: 'Floor 6', cage: 'DFM1', itemType: 'rack', dataType: 'Power' },
-  { id: 7, name: 'Rack D-01', category: 'Development', status: 'active', value: 13500, date: '2024-01-12', priority: 'medium', customer: 'Data Systems', site: 'Data Center 1', room: 'Floor 7', cage: 'DFM2', itemType: 'ambient orb', dataType: 'Temperature' },
-  { id: 8, name: 'Rack D-02', category: 'Marketing', status: 'inactive', value: 7500, date: '2024-01-08', priority: 'low', customer: 'Cloud Services', site: 'Data Center 3', room: 'Floor 1', cage: 'DFM3', itemType: 'power', dataType: 'Humidity' }
+  { id: 1, name: 'Rack A-01', category: 'Development', status: 'active', value: 15000, date: '2024-01-15', priority: 'high', customer: 'Acme Corp', site: 'Data Center 1', room: 'Floor 1', cage: 'DFM1', itemType: 'Rack', dataType: 'Power' },
+  { id: 2, name: 'Rack A-02', category: 'Marketing', status: 'pending', value: 8500, date: '2024-01-20', priority: 'medium', customer: 'Tech Solutions', site: 'Data Center 2', room: 'Floor 2', cage: 'DFM2', itemType: 'Ambient Orb', dataType: 'Temperature' },
+  { id: 3, name: 'Rack B-01', category: 'Sales', status: 'active', value: 22000, date: '2024-01-10', priority: 'high', customer: 'Data Systems', site: 'Data Center 1', room: 'Floor 3', cage: 'DFM3', itemType: 'Cooling', dataType: 'Humidity' },
+  { id: 4, name: 'Rack B-02', category: 'Development', status: 'inactive', value: 12000, date: '2024-01-05', priority: 'low', customer: 'Cloud Services', site: 'Data Center 3', room: 'Floor 4', cage: 'Rack Group 1', itemType: 'Power', dataType: 'Airflow' },
+  { id: 5, name: 'Rack C-01', category: 'Marketing', status: 'active', value: 18000, date: '2024-01-25', priority: 'medium', customer: 'Acme Corp', site: 'Remote Site', room: 'Floor 5', cage: 'Rack Group 2', itemType: 'Cooling', dataType: 'Utilization' },
+  { id: 6, name: 'Rack C-02', category: 'Sales', status: 'pending', value: 9500, date: '2024-01-18', priority: 'high', customer: 'Tech Solutions', site: 'Data Center 2', room: 'Floor 6', cage: 'DFM1', itemType: 'Rack', dataType: 'Power' },
+  { id: 7, name: 'Rack D-01', category: 'Development', status: 'active', value: 13500, date: '2024-01-12', priority: 'medium', customer: 'Data Systems', site: 'Data Center 1', room: 'Floor 7', cage: 'DFM2', itemType: 'Ambient Orb', dataType: 'Temperature' },
+  { id: 8, name: 'Rack D-02', category: 'Marketing', status: 'inactive', value: 7500, date: '2024-01-08', priority: 'low', customer: 'Cloud Services', site: 'Data Center 3', room: 'Floor 1', cage: 'DFM3', itemType: 'Power', dataType: 'Humidity' }
 ])
 
 // Filter states
@@ -36,6 +36,7 @@ const itemLabel = ref('')
 const selectedCustomer = ref<string[]>([])
 const selectedSite = ref<string[]>([])
 const selectedRoom = ref<string[]>([])
+const showSiteItems = ref(false)
 const selectedCage = ref<string[]>([])
 const selectedItemType = ref<string[]>([])
 const selectedDataType = ref<string[]>([])
@@ -45,9 +46,57 @@ const selectedPowerDatatype = ref<string[]>([])
 const selectedCapacityDatatype = ref<string[]>([])
 const selectedDataResolution = ref<string[]>([])
 const selectedAggregation = ref<Record<string, string[]>>({})
+const itemTypeOptions = ['Rack', 'Ambient Orb', 'Cooling', 'Power']
+const itemTypeRadioOptions = ['All Item Types', ...itemTypeOptions]
 const dateRange = ref({
   start: '',
   end: ''
+})
+type DatePresetKey = 'lastWeek' | 'lastMonth' | 'lastQuarter'
+
+const datePresets: { id: DatePresetKey; label: string }[] = [
+  { id: 'lastWeek', label: 'Last 7 days' },
+  { id: 'lastMonth', label: 'Last 30 days' },
+  { id: 'lastQuarter', label: 'Last 90 days' }
+]
+
+const toDateInputValue = (date: Date) => {
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getPresetRange = (preset: DatePresetKey) => {
+  const end = new Date()
+  end.setHours(0, 0, 0, 0)
+  const start = new Date(end)
+  const offsets: Record<DatePresetKey, number> = {
+    lastWeek: 6,
+    lastMonth: 29,
+    lastQuarter: 89
+  }
+  start.setDate(start.getDate() - offsets[preset])
+  return {
+    start: toDateInputValue(start),
+    end: toDateInputValue(end)
+  }
+}
+
+const setDatePreset = (preset: DatePresetKey) => {
+  dateRange.value = getPresetRange(preset)
+}
+
+const clearDateRange = () => {
+  dateRange.value = { start: '', end: '' }
+}
+
+const activeDatePreset = computed<DatePresetKey | null>(() => {
+  const match = datePresets.find(preset => {
+    const range = getPresetRange(preset.id)
+    return dateRange.value.start === range.start && dateRange.value.end === range.end
+  })
+  return match ? match.id : null
 })
 const sortBy = ref('name')
 const sortOrder = ref('asc')
@@ -76,6 +125,13 @@ const chartExportDropdownOpen = ref(false)
 const showCsvModal = ref(false)
 const csvModalTitle = ref('')
 const csvModalContent = ref('')
+const csvPreviewRows = computed(() => {
+  if (!csvModalContent.value) return []
+  return csvModalContent.value
+    .split('\n')
+    .filter(line => line.trim().length > 0)
+    .map(line => line.split(',').map(cell => cell.replace(/^"(.*)"$/, '$1')))
+})
 
 // Graph modal state
 interface TimeSeriesPoint {
@@ -84,8 +140,15 @@ interface TimeSeriesPoint {
   unit: string
 }
 
+interface GraphSeries {
+  label: string
+  unit: string
+  points: TimeSeriesPoint[]
+  color: string
+}
+
 const showGraphModal = ref(false)
-const selectedGraphData = ref<TimeSeriesPoint[] | null>(null)
+const selectedGraphData = ref<GraphSeries[]>([])
 const selectedGraphTitle = ref('')
 
 // Chart dropdown state
@@ -97,8 +160,63 @@ const activeTabB = ref('thermal')
 const tabs = ref([
   { id: 'thermal', label: 'Thermal', icon: '🌡️' },
   { id: 'power', label: 'Power', icon: '⚡' },
-  { id: 'capacity', label: 'Capacity', icon: '📊' }
+  { id: 'capacity', label: 'Capacity', icon: '🗄️' }
 ])
+const isPowerItemType = computed(() => selectedItemType.value.map(v => v.toLowerCase()).includes('power'))
+const powerPrimaryHeader = computed(() => {
+  if (selectedAggregateLevel.value === 'Estate Level') return 'Site'
+  if (selectedAggregateLevel.value === 'Site Level') return 'Room'
+  return isPowerItemType.value ? 'PDU' : 'Rack Label'
+})
+const powerRowLabel = (record: any) => {
+  if (selectedAggregateLevel.value === 'Estate Level') return record.site || '-'
+  if (selectedAggregateLevel.value === 'Site Level') return record.room || '-'
+  return isPowerItemType.value ? record.circuit || record.rack || 'PDU' : record.rack || record.circuit || 'Rack'
+}
+const powerRowLabelB = (record: any) => isPowerItemType.value ? record.circuit || record.rack || 'PDU' : record.rack || record.circuit || 'Rack'
+const capacityPrimaryHeader = computed(() => {
+  if (selectedAggregateLevel.value === 'Estate Level') return 'Site'
+  if (selectedAggregateLevel.value === 'Site Level') return 'Room'
+  return isPowerItemType.value ? 'PDU' : 'Rack Label'
+})
+const capacityRowLabel = (record: any) => {
+  if (selectedAggregateLevel.value === 'Estate Level') return record.site || '-'
+  if (selectedAggregateLevel.value === 'Site Level') return record.room || '-'
+  return isPowerItemType.value ? record.circuit || record.rack || record.resource || 'PDU' : record.rack || record.resource || 'Rack'
+}
+const capacityRowLabelB = (record: any) => isPowerItemType.value ? record.circuit || record.rack || record.resource || 'PDU' : record.rack || record.resource || 'Rack'
+const selectItemType = (option: string) => {
+  selectedItemType.value = option === 'All Item Types' ? [] : [option]
+  updateFilter()
+}
+const filteredTabs = computed(() => {
+  const hasPower = isPowerItemType.value
+  const hasCooling = selectedItemType.value.map(v => v.toLowerCase()).includes('cooling')
+  if (hasPower && !hasCooling) {
+    return tabs.value.filter(tab => tab.id === 'power' || tab.id === 'capacity')
+  }
+  if (hasCooling && !hasPower) {
+    return [] // cooling handled in secondary tab set
+  }
+  return tabs.value
+})
+const tabOptionsB = computed(() => {
+  const base = [
+    { id: 'thermal', label: 'Thermal' },
+    { id: 'power', label: 'Power' },
+    { id: 'capacity', label: 'Capacity' },
+    { id: 'cooling', label: 'Cooling' }
+  ]
+  const hasPower = isPowerItemType.value
+  const hasCooling = selectedItemType.value.map(v => v.toLowerCase()).includes('cooling')
+  if (hasPower && !hasCooling) {
+    return base.filter(tab => tab.id === 'power' || tab.id === 'capacity')
+  }
+  if (hasCooling && !hasPower) {
+    return base.filter(tab => tab.id === 'cooling')
+  }
+  return base
+})
 
 // Computed filtered data (currently unused but kept for potential future use)
 const filteredData = computed(() => {
@@ -249,6 +367,26 @@ watch(selectedAggregateLevel, () => {
   dropdownOpen.value.itemType = false
 })
 
+watch(filteredTabs, (newTabs) => {
+  if (newTabs.length === 0) {
+    activeTab.value = ''
+    return
+  }
+  if (!newTabs.some(tab => tab.id === activeTab.value)) {
+    activeTab.value = newTabs[0].id
+  }
+})
+
+watch(tabOptionsB, (newTabs) => {
+  if (newTabs.length === 0) {
+    activeTabB.value = ''
+    return
+  }
+  if (!newTabs.some(tab => tab.id === activeTabB.value)) {
+    activeTabB.value = newTabs[0].id
+  }
+})
+
 // Generate sample time series data
 const generateTimeSeriesData = (_type: string, value: number | string, unit: string): TimeSeriesPoint[] => {
   const data: TimeSeriesPoint[] = []
@@ -272,43 +410,50 @@ const generateTimeSeriesData = (_type: string, value: number | string, unit: str
 
 // Handle graph icon click
 const showGraph = (record: any, type: string) => {
-  let data: TimeSeriesPoint[] = []
+  const palette = ['#22d3ee', '#a855f7', '#f97316', '#38bdf8', '#34d399', '#facc15']
   let title = ''
-  
+  const series: GraphSeries[] = []
+
   if (type === 'thermal') {
-    data = generateTimeSeriesData('temperature', record.avgTemp, '°C')
-    if (selectedAggregateLevel.value === 'Estate Level') {
-      title = `${record.site} - Temperature Time Series`
-    } else if (selectedAggregateLevel.value === 'Site Level') {
-      title = `${record.room} - Temperature Time Series`
-    } else {
-      title = `${record.rackLabel} - Temperature Time Series`
+    title = selectedAggregateLevel.value === 'Estate Level'
+      ? `${record.site} - Thermal Time Series`
+      : selectedAggregateLevel.value === 'Site Level'
+        ? `${record.room} - Thermal Time Series`
+        : `${record.rackLabel} - Thermal Time Series`
+    series.push(
+      { label: 'Avg Temp', unit: '°C', points: generateTimeSeriesData('temperature', record.avgTemp, '°C'), color: palette[0] },
+      { label: 'Humidity', unit: '%', points: generateTimeSeriesData('humidity', record.humidity, '%'), color: palette[1] }
+    )
+    if (record.outletT) {
+      series.push({ label: 'Outlet T', unit: '°C', points: generateTimeSeriesData('outlet', record.outletT, '°C'), color: palette[2] })
     }
   } else if (type === 'power') {
-    if (selectedAggregateLevel.value === 'Estate Level') {
-      data = generateTimeSeriesData('power', record.totalPower, 'kW')
-      title = `${record.site} - Total Power Time Series`
-    } else if (selectedAggregateLevel.value === 'Site Level') {
-      data = generateTimeSeriesData('power', record.totalPower, 'kW')
-      title = `${record.room} - Total Power Time Series`
-    } else {
-      data = generateTimeSeriesData('power', record.power, 'kW')
-      title = `${record.rack} - Power Time Series`
-    }
+    title = selectedAggregateLevel.value === 'Estate Level'
+      ? `${record.site} - Power Time Series`
+      : selectedAggregateLevel.value === 'Site Level'
+        ? `${record.room} - Power Time Series`
+        : `${record.rack} - Power Time Series`
+    const basePower = selectedAggregateLevel.value === 'Estate Level' || selectedAggregateLevel.value === 'Site Level'
+      ? record.totalPower
+      : record.power
+    series.push(
+      { label: 'Power', unit: 'kW', points: generateTimeSeriesData('power', basePower, 'kW'), color: palette[0] },
+      { label: 'Voltage', unit: 'V', points: generateTimeSeriesData('voltage', record.voltage || 230, 'V'), color: palette[1] },
+      { label: 'Current', unit: 'A', points: generateTimeSeriesData('current', record.current || 15, 'A'), color: palette[2] }
+    )
   } else if (type === 'capacity') {
-    if (selectedAggregateLevel.value === 'Estate Level') {
-      data = generateTimeSeriesData('utilization', record.utilization, '%')
-      title = `${record.site} - Rack Utilization Time Series`
-    } else if (selectedAggregateLevel.value === 'Site Level') {
-      data = generateTimeSeriesData('utilization', record.utilization, '%')
-      title = `${record.room} - Rack Utilization Time Series`
-    } else {
-      data = generateTimeSeriesData('utilization', record.utilization, '%')
-      title = `${record.rack} - Utilization Time Series`
-    }
+    title = selectedAggregateLevel.value === 'Estate Level'
+      ? `${record.site} - Capacity Time Series`
+      : selectedAggregateLevel.value === 'Site Level'
+        ? `${record.room} - Capacity Time Series`
+        : `${record.rack} - Capacity Time Series`
+    series.push(
+      { label: 'Utilization', unit: '%', points: generateTimeSeriesData('utilization', record.utilization, '%'), color: palette[0] },
+      { label: 'Reserved', unit: record.unit || '%', points: generateTimeSeriesData('reserved', record.total - record.used, record.unit || ''), color: palette[1] }
+    )
   }
-  
-  selectedGraphData.value = data
+
+  selectedGraphData.value = series
   selectedGraphTitle.value = title
   showGraphModal.value = true
 }
@@ -885,6 +1030,34 @@ const linePath = computed(() => {
   return path
 })
 
+const modalAxis = computed(() => {
+  const units = selectedGraphData.value.map(series => series.unit).filter(u => u !== undefined && u !== null)
+  const primary = units[0] || ''
+  const secondary = units.find(u => u !== primary) || ''
+  const primaryValues = selectedGraphData.value
+    .filter(series => series.unit === primary)
+    .flatMap(series => series.points.map(p => p.value))
+  const secondaryValues = selectedGraphData.value
+    .filter(series => series.unit === secondary)
+    .flatMap(series => series.points.map(p => p.value))
+  const primaryMax = primaryValues.length ? Math.max(...primaryValues) : 1
+  const secondaryMax = secondaryValues.length ? Math.max(...secondaryValues) : 1
+  return { primary, secondary, primaryMax: primaryMax || 1, secondaryMax: secondary ? (secondaryMax || 1) : 0 }
+})
+
+const getModalPoints = (series: GraphSeries) => {
+  if (!series.points.length) return []
+  const { primary, primaryMax, secondary, secondaryMax } = modalAxis.value
+  const useSecondary = secondary && series.unit === secondary
+  const max = useSecondary ? secondaryMax || 1 : primaryMax || 1
+  const len = series.points.length
+  return series.points.map((point, index) => {
+    const x = 60 + (index * 720 / Math.max(len - 1, 1))
+    const y = 360 - ((point.value / max) * 320)
+    return { x, y }
+  })
+}
+
 const clearFilters = () => {
   searchTerm.value = ''
   searchTerm2.value = ''
@@ -1074,39 +1247,214 @@ const toggleExportDropdown = () => {
   exportDropdownOpen.value = !exportDropdownOpen.value
 }
 
-const getCurrentTableData = () => {
-  switch (activeTab.value) {
+const getResolutionMinutes = () => {
+  const selected = selectedDataResolution.value[0] || 'Hourly aggregate'
+  switch (selected) {
+    case '5 min aggregate':
+      return 5
+    case '15 min aggregate':
+      return 15
+    case 'Hourly aggregate':
+      return 60
+    case 'Daily':
+    default:
+      return 24 * 60
+  }
+}
+
+const formatTimestamp = (date: Date, minutesStep: number) => {
+  const base = toDateInputValue(date)
+  if (minutesStep >= 24 * 60) return base
+  const hours = `${date.getHours()}`.padStart(2, '0')
+  const mins = `${date.getMinutes()}`.padStart(2, '0')
+  return `${base} ${hours}:${mins}`
+}
+
+const getSelectedTimeline = () => {
+  const today = new Date()
+  const parseDate = (value: string) => {
+    const parsed = new Date(value)
+    return isNaN(parsed.getTime()) ? null : parsed
+  }
+  
+  const startProvided = !!dateRange.value.start
+  const endProvided = !!dateRange.value.end
+  
+  let end = parseDate(dateRange.value.end) || new Date(today)
+  let start = parseDate(dateRange.value.start) || new Date(end)
+  
+  if (startProvided && !endProvided) {
+    end = new Date(start)
+    end.setDate(start.getDate() + 6)
+  }
+  
+  // Default to the last 7 days when no start date is supplied
+  if (!dateRange.value.start) {
+    start.setDate(end.getDate() - 6)
+  }
+  
+  // Normalize time and ensure order
+  start.setHours(0, 0, 0, 0)
+  end.setHours(23, 59, 0, 0)
+  if (start > end) {
+    const temp = new Date(start)
+    start = end
+    end = temp
+  }
+  
+  const minutesStep = getResolutionMinutes()
+  const timestamps: string[] = []
+  const cursor = new Date(start)
+  while (cursor <= end) {
+    timestamps.push(formatTimestamp(cursor, minutesStep))
+    cursor.setMinutes(cursor.getMinutes() + minutesStep)
+  }
+  
+  return {
+    start: toDateInputValue(start),
+    end: toDateInputValue(end),
+    timestamps,
+    minutesStep
+  }
+}
+
+const getDisplayedTableData = (tabValue = activeTab.value) => {
+  const level = selectedAggregateLevel.value
+  const byLevel = <T>(estate: T[], site: T[], room: T[]) => {
+    if (level === 'Estate Level') return estate
+    if (level === 'Site Level') return site
+    return room
+  }
+  
+  switch (tabValue) {
     case 'thermal':
-      return thermalData.value
+      return byLevel(siteThermalData.value, roomThermalData.value, thermalData.value)
     case 'power':
-      return powerData.value
+      return byLevel(sitePowerData.value, roomPowerData.value, powerData.value)
     case 'capacity':
-      return capacityData.value
+      return byLevel(siteCapacityData.value, roomCapacityData.value, capacityData.value)
     default:
       return []
   }
 }
 
+const getDisplayedTableDataB = (tabValue = activeTabB.value) => {
+  switch (tabValue) {
+    case 'thermal':
+      return thermalDataB.value
+    case 'power':
+      return powerDataB.value
+    case 'capacity':
+      return capacityDataB.value
+    case 'cooling':
+      return coolingDataB.value
+    default:
+      return []
+  }
+}
+
+const stableJitter = (seed: string, magnitude: number) => {
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
+  }
+  const normalized = (hash % 2000) / 2000 - 0.5 // [-0.5, 0.5)
+  return normalized * magnitude
+}
+
+const getItemLabel = (item: any) => item.rackLabel || item.rack || item.room || item.site || item.resource || item.circuit || 'Item'
+
+const getTimeSeriesFields = (tabValue: string) => {
+  if (tabValue === 'thermal') {
+    return [
+      { label: 'Min Temp', unit: '°C', getBase: (item: any) => Number(item.minTemp ?? item.avgTemp ?? 0) },
+      { label: 'Max Temp', unit: '°C', getBase: (item: any) => Number(item.maxTemp ?? item.avgTemp ?? 0) },
+      { label: 'Avg Temp', unit: '°C', getBase: (item: any) => Number(item.avgTemp ?? ((Number(item.minTemp) || 0 + Number(item.maxTemp) || 0) / 2)) },
+      { label: 'Humidity', unit: '%', getBase: (item: any) => Number(item.humidity ?? 0) },
+      { label: 'Dew Point', unit: '°C', getBase: (item: any) => Number(item.dewPoint ?? (Number(item.avgTemp ?? 0) - 3)) },
+      { label: 'Outlet T', unit: '°C', getBase: (item: any) => Number(item.outletT ?? item.outletTemp ?? item.avgTemp ?? 0) }
+    ]
+  }
+  if (tabValue === 'power') {
+    return [
+      { label: 'Voltage', unit: 'V', getBase: (item: any) => Number(item.voltage ?? 230) },
+      { label: 'Current', unit: 'A', getBase: (item: any) => Number(item.current ?? 15) },
+      { label: 'Power', unit: 'kW', getBase: (item: any) => Number(item.totalPower ?? item.power ?? item.avgPower ?? 0) },
+      { label: 'Energy', unit: 'kWh', getBase: (item: any) => Number(item.energy ?? 0) },
+      { label: 'Load', unit: '%', getBase: (item: any) => Number(item.load ?? item.utilization ?? 0) },
+      { label: 'PUE', unit: '', getBase: (item: any) => Number(item.pue ?? 1.4) }
+    ]
+  }
+  if (tabValue === 'capacity') {
+    return [
+      { label: 'Measured', unit: (item: any) => item.unit || 'kW', getBase: (item: any) => Number(item.used ?? 0) },
+      { label: 'Allocated', unit: (item: any) => item.unit || 'kW', getBase: (item: any) => Number(Math.max((Number(item.used) || 0) * 0.9, 0)) },
+      { label: 'Reserved', unit: (item: any) => item.unit || 'kW', getBase: (item: any) => Number((Number(item.total) || 0) - (Number(item.used) || 0)) },
+      { label: 'Subtotal', unit: (item: any) => item.unit || 'kW', getBase: (item: any) => Number(item.total ?? 0) },
+      { label: 'Utilization', unit: '%', getBase: (item: any) => Number(item.utilization ?? ((Number(item.used) || 0) / Math.max(Number(item.total) || 1, 1)) * 100) }
+    ]
+  }
+  if (tabValue === 'cooling') {
+    return [
+      { label: 'Cooling Used', unit: (item: any) => item.unit || 'kW', getBase: (item: any) => Number(item.used ?? 0) },
+      { label: 'Cooling Total', unit: (item: any) => item.unit || 'kW', getBase: (item: any) => Number(item.total ?? 0) },
+      { label: 'Cooling Utilization', unit: '%', getBase: (item: any) => Number(item.utilization ?? ((Number(item.used) || 0) / Math.max(Number(item.total) || 1, 1)) * 100) }
+    ]
+  }
+  return [
+    { label: 'Value', unit: '', getBase: (item: any) => Number(item.value ?? 0) }
+  ]
+}
+
+const formatTimeSeriesValue = (field: any, item: any, tabValue: string, timestamp: string) => {
+  const base = field.getBase(item) || 0
+  const label = getItemLabel(item)
+  const jitter = Math.max(Math.abs(base) * 0.05, 0.5)
+  const value = Math.max(0, base + stableJitter(`${field.label}-${label}-${timestamp}-${tabValue}`, jitter))
+  const unit = typeof field.unit === 'function' ? field.unit(item) : field.unit
+  const num = parseFloat(value.toFixed(2))
+  return unit ? `${num} ${unit}` : `${num}`
+}
+
+const buildTimeSeriesCsv = (tabValue = activeTab.value, isB = false) => {
+  const dataset = isB ? getDisplayedTableDataB(tabValue) : getDisplayedTableData(tabValue)
+  const { timestamps, start, end } = getSelectedTimeline()
+  if (!dataset.length || !timestamps.length) {
+    return { csv: '', range: `${start} to ${end}` }
+  }
+  const fields = getTimeSeriesFields(tabValue)
+  
+  const header = ['Item', 'Timestamp', ...fields.map(field => field.label)]
+  const rows: (string | number)[][] = [header]
+  const ordered = [...dataset].sort((a: any, b: any) => {
+    const aLabel = getItemLabel(a).toString()
+    const bLabel = getItemLabel(b).toString()
+    return aLabel.localeCompare(bLabel)
+  })
+  
+  ordered.forEach(item => {
+    timestamps.forEach(timestamp => {
+      rows.push([
+        getItemLabel(item),
+        timestamp,
+        ...fields.map(field => formatTimeSeriesValue(field, item, tabValue, timestamp))
+      ])
+    })
+    rows.push(['', '', ...fields.map(() => '')]) // spacer row for grouping
+  })
+  
+  const csv = rows.map(row => row.join(',')).join('\n')
+  return { csv, range: `${start} to ${end}` }
+}
+
+const getCurrentTableData = () => getDisplayedTableData()
+
 const exportToCSV = () => {
-  const data = getCurrentTableData()
-  if (data.length === 0) return
+  const { csv, range } = buildTimeSeriesCsv(activeTab.value, false)
+  if (!csv) return
   
-  const firstRow = data[0]
-  if (!firstRow) return
-  
-  const headers = Object.keys(firstRow).filter(key => key !== 'id')
-  const csvContent = [
-    headers.join(','),
-    ...data.map(row => 
-      headers.map(header => {
-        const value = row[header as keyof typeof row]
-        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
-      }).join(',')
-    )
-  ].join('\n')
-  
-  csvModalTitle.value = `${activeTab.value.toUpperCase()} CSV Preview`
-  csvModalContent.value = csvContent
+  csvModalTitle.value = `${activeTab.value.toUpperCase()} Time Series (${range})`
+  csvModalContent.value = csv
   showCsvModal.value = true
   exportDropdownOpen.value = false
 }
@@ -1187,39 +1535,14 @@ const toggleExportDropdownB = () => {
   exportDropdownOpenB.value = !exportDropdownOpenB.value
 }
 
-const getCurrentTableDataB = () => {
-  switch (activeTabB.value) {
-    case 'thermal':
-      return thermalDataB.value
-    case 'power':
-      return powerData.value
-    case 'capacity':
-      return capacityDataB.value
-    default:
-      return []
-  }
-}
+const getCurrentTableDataB = () => getDisplayedTableDataB()
 
 const exportToCSVB = () => {
-  const data = getCurrentTableDataB()
-  if (data.length === 0) return
+  const { csv, range } = buildTimeSeriesCsv(activeTabB.value, true)
+  if (!csv) return
   
-  const firstRow = data[0]
-  if (!firstRow) return
-  
-  const headers = Object.keys(firstRow).filter(key => key !== 'id')
-  const csvContent = [
-    headers.join(','),
-    ...data.map(row => 
-      headers.map(header => {
-        const value = row[header as keyof typeof row]
-        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
-      }).join(',')
-    )
-  ].join('\n')
-  
-  csvModalTitle.value = `CAGE B ${activeTabB.value.toUpperCase()} CSV Preview`
-  csvModalContent.value = csvContent
+  csvModalTitle.value = `CAGE B ${activeTabB.value.toUpperCase()} Time Series (${range})`
+  csvModalContent.value = csv
   showCsvModal.value = true
   exportDropdownOpenB.value = false
 }
@@ -1621,12 +1944,19 @@ const getCapacityStatusClass = (status: string) => {
                     type="checkbox" 
                     :value="option" 
                     v-model="selectedRoom"
-                    @change="updateFilter"
-                  />
-                  <span class="checkbox-label">{{ option }}</span>
-                </label>
-              </div>
+                  @change="updateFilter"
+                />
+                <span class="checkbox-label">{{ option }}</span>
+              </label>
             </div>
+          </div>
+          <label v-if="selectedAggregateLevel === 'Site Level' || selectedAggregateLevel === 'Room Level'" class="checkbox-inline">
+            <input 
+              type="checkbox" 
+              v-model="showSiteItems"
+            />
+            <span class="checkbox-label">Show Site items too?</span>
+          </label>
           </div>
           
           <div v-if="selectedAggregateLevel === 'Room Level'" class="filter-group">
@@ -1662,16 +1992,17 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.itemType }"
               >
-                {{ getDropdownLabel('itemType', selectedItemType, ['rack', 'ambient orb', 'cooling', 'power']) }}
+                {{ getDropdownLabel('itemType', selectedItemType, itemTypeOptions) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.itemType" class="dropdown-content">
-                <label v-for="option in ['rack', 'ambient orb', 'cooling', 'power']" :key="option" class="checkbox-item">
+                <label v-for="option in itemTypeRadioOptions" :key="option" class="checkbox-item">
                   <input 
-                    type="checkbox" 
+                    type="radio" 
+                    name="item-type"
                     :value="option" 
-                    v-model="selectedItemType"
-                    @change="updateFilter"
+                    :checked="(option === 'All Item Types' && selectedItemType.length === 0) || selectedItemType.includes(option)"
+                    @change="selectItemType(option)"
                   />
                   <span class="checkbox-label">{{ option }}</span>
                 </label>
@@ -1873,6 +2204,20 @@ const getCapacityStatusClass = (status: string) => {
           
           <div class="filter-group">
             <label>Date Range</label>
+            <div class="date-presets">
+              <button
+                v-for="preset in datePresets"
+                :key="preset.id"
+                class="date-preset-button"
+                :class="{ active: activeDatePreset === preset.id }"
+                @click="setDatePreset(preset.id)"
+              >
+                {{ preset.label }}
+              </button>
+              <button class="date-preset-button clear" @click="clearDateRange">
+                Clear
+              </button>
+            </div>
             <div class="date-range-container">
               <div class="date-input-group">
                 <label for="start-date" class="date-label">From</label>
@@ -2091,7 +2436,7 @@ const getCapacityStatusClass = (status: string) => {
       <!-- Tabs -->
       <div class="tabs-container">
         <button 
-          v-for="tab in tabs" 
+          v-for="tab in filteredTabs" 
           :key="tab.id"
           @click="activeTab = tab.id"
           :class="['tab-button', { active: activeTab === tab.id }]"
@@ -2267,7 +2612,7 @@ const getCapacityStatusClass = (status: string) => {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>{{ selectedAggregateLevel === 'Estate Level' ? 'Site' : selectedAggregateLevel === 'Site Level' ? 'Room' : 'Rack Label' }}</th>
+                  <th>{{ powerPrimaryHeader }}</th>
                   <th>{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Grid' }}</th>
                   <th v-if="showPowerColumns.voltage">{{ selectedAggregateLevel === 'Estate Level' ? 'Voltage' : selectedAggregateLevel === 'Site Level' ? 'Voltage' : 'Voltage' }}</th>
                   <th v-if="showPowerColumns.amps">{{ selectedAggregateLevel === 'Estate Level' ? 'Current' : selectedAggregateLevel === 'Site Level' ? 'Current' : 'Current' }}</th>
@@ -2312,7 +2657,7 @@ const getCapacityStatusClass = (status: string) => {
                 <!-- Room Level: Show rack data -->
                 <template v-else>
                 <tr v-for="power in powerData" :key="power.id" class="data-row">
-                  <td class="name-cell">{{ power.rack }}</td>
+                  <td class="name-cell">{{ powerRowLabel(power) }}</td>
                   <td class="name-cell">{{ power.grid }}</td>
                   <td v-if="showPowerColumns.voltage" class="value-cell">{{ power.voltage }}V</td>
                   <td v-if="showPowerColumns.amps" class="value-cell">{{ power.current }}A</td>
@@ -2345,7 +2690,7 @@ const getCapacityStatusClass = (status: string) => {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>{{ selectedAggregateLevel === 'Estate Level' ? 'Site' : selectedAggregateLevel === 'Site Level' ? 'Room' : 'Rack Label' }}</th>
+                  <th>{{ capacityPrimaryHeader }}</th>
                   <th>{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Grid' }}</th>
                   <th v-if="showCapacityColumns.measured">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Measured (kW)' }}</th>
                   <th v-if="showCapacityColumns.allocated">{{ selectedAggregateLevel === 'Estate Level' ? '-' : selectedAggregateLevel === 'Site Level' ? '-' : 'Allocated (kW)' }}</th>
@@ -2391,7 +2736,7 @@ const getCapacityStatusClass = (status: string) => {
                 <!-- Room Level: Show rack data -->
                 <template v-else>
                 <tr v-for="capacity in capacityData" :key="capacity.id" class="data-row">
-                    <td class="name-cell">{{ capacity.rack }}</td>
+                    <td class="name-cell">{{ capacityRowLabel(capacity) }}</td>
                     <td class="name-cell">{{ capacity.grid }}</td>
                   <td class="value-cell">{{ formatKw(capacity.used) }}</td>
                   <td class="value-cell">{{ formatKw(Math.max(capacity.used * 0.9, 0)) }}</td>
@@ -2583,28 +2928,12 @@ const getCapacityStatusClass = (status: string) => {
     <div class="tabbed-tables-container">
       <div class="tabs-container">
         <button 
-          @click="activeTabB = 'thermal'" 
-          :class="['tab-button', { 'active': activeTabB === 'thermal' }]"
+          v-for="tab in tabOptionsB"
+          :key="tab.id"
+          @click="activeTabB = tab.id" 
+          :class="['tab-button', { 'active': activeTabB === tab.id }]"
         >
-          Thermal
-        </button>
-        <button 
-          @click="activeTabB = 'power'" 
-          :class="['tab-button', { 'active': activeTabB === 'power' }]"
-        >
-          Power
-        </button>
-        <button 
-          @click="activeTabB = 'capacity'" 
-          :class="['tab-button', { 'active': activeTabB === 'capacity' }]"
-        >
-          Capacity
-        </button>
-        <button 
-          @click="activeTabB = 'cooling'" 
-          :class="['tab-button', { 'active': activeTabB === 'cooling' }]"
-        >
-          Cooling
+          {{ tab.label }}
         </button>
       </div>
       
@@ -2677,7 +3006,7 @@ const getCapacityStatusClass = (status: string) => {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Rack Label</th>
+                  <th>{{ isPowerItemType ? 'PDU' : 'Rack Label' }}</th>
                   <th>Grid</th>
                   <th>Voltage</th>
                   <th>Current</th>
@@ -2688,7 +3017,7 @@ const getCapacityStatusClass = (status: string) => {
               </thead>
               <tbody>
                 <tr v-for="power in powerDataB" :key="power.id" class="data-row">
-                  <td class="name-cell">{{ power.rack }}</td>
+                  <td class="name-cell">{{ powerRowLabelB(power) }}</td>
                   <td class="name-cell">{{ power.grid }}</td>
                   <td class="value-cell">{{ power.voltage }}V</td>
                   <td class="value-cell">{{ power.current }}A</td>
@@ -2720,7 +3049,7 @@ const getCapacityStatusClass = (status: string) => {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Rack Label</th>
+                  <th>{{ isPowerItemType ? 'PDU' : 'Rack Label' }}</th>
                   <th>Grid</th>
                   <th>Measured (kW)</th>
                   <th>Allocated (kW)</th>
@@ -2732,7 +3061,7 @@ const getCapacityStatusClass = (status: string) => {
               </thead>
               <tbody>
                 <tr v-for="capacity in capacityDataB" :key="capacity.id" class="data-row">
-                  <td class="name-cell">{{ capacity.rack }}</td>
+                  <td class="name-cell">{{ capacityRowLabelB(capacity) }}</td>
                   <td class="name-cell">{{ capacity.grid }}</td>
                   <td class="value-cell">{{ formatKw(capacity.used) }}</td>
                   <td class="value-cell">{{ formatKw(Math.max(capacity.used * 0.9, 0)) }}</td>
@@ -2851,34 +3180,38 @@ const getCapacityStatusClass = (status: string) => {
             
             <!-- Chart area -->
             <rect x="60" y="40" width="720" height="320" fill="none" stroke="#4b5563" stroke-width="1"/>
+            <!-- Axes -->
+            <line x1="60" y1="360" x2="780" y2="360" stroke="#4b5563" stroke-width="1.5" />
+            <line x1="60" y1="40" x2="60" y2="360" stroke="#4b5563" stroke-width="1.5" />
+            <line v-if="modalAxis.secondary" x1="780" y1="40" x2="780" y2="360" stroke="#4b5563" stroke-width="1.5" />
             
-            <!-- Data line -->
-            <polyline
-              :points="selectedGraphData?.map((point, index) => {
-                const x = 60 + (index * 720 / ((selectedGraphData?.length || 1) - 1))
-                const y = 360 - ((point.value / Math.max(...(selectedGraphData?.map(p => p.value) || [1]))) * 320)
-                return `${x},${y}`
-              }).join(' ') || ''"
-              fill="none"
-              stroke="#3b82f6"
-              stroke-width="3"
-            />
-            
-            <!-- Data points -->
-            <circle
-              v-for="(point, index) in selectedGraphData || []"
-              :key="index"
-              :cx="60 + (index * 720 / ((selectedGraphData?.length || 1) - 1))"
-              :cy="360 - ((point.value / Math.max(...(selectedGraphData?.map(p => p.value) || [1]))) * 320)"
-              r="4"
-              fill="#3b82f6"
-            />
+            <!-- Data lines -->
+            <template v-for="series in selectedGraphData" :key="series.label">
+              <polyline
+                :points="getModalPoints(series).map(pt => `${pt.x},${pt.y}`).join(' ')"
+                fill="none"
+                :stroke="series.color"
+                stroke-width="3"
+                stroke-linejoin="round"
+                stroke-linecap="round"
+              />
+              <circle
+                v-for="(pt, idx) in getModalPoints(series)"
+                :key="`${series.label}-pt-${idx}`"
+                :cx="pt.x"
+                :cy="pt.y"
+                r="4"
+                :fill="series.color"
+                stroke="#0b1220"
+                stroke-width="1.5"
+              />
+            </template>
             
             <!-- X-axis labels (time) -->
             <text
-              v-for="(point, index) in (selectedGraphData || []).filter((_, i) => i % 4 === 0)"
+              v-for="(point, index) in (selectedGraphData[0]?.points || []).filter((_, i) => i % 4 === 0)"
               :key="index"
-              :x="60 + (index * 4 * 720 / ((selectedGraphData?.length || 1) - 1))"
+              :x="60 + (index * 4 * 720 / (Math.max((selectedGraphData[0]?.points.length || 1) - 1, 1)))"
               y="390"
               class="axis-label"
               text-anchor="middle"
@@ -2895,14 +3228,37 @@ const getCapacityStatusClass = (status: string) => {
               class="axis-label"
               text-anchor="end"
             >
-              {{ (Math.max(...(selectedGraphData?.map(p => p.value) || [1])) * value).toFixed(1) }}
+              {{ (modalAxis.primaryMax * value).toFixed(1) }}
             </text>
             
             <!-- Y-axis unit -->
             <text x="20" y="200" class="y-axis-label" transform="rotate(-90, 20, 200)">
-              {{ selectedGraphData?.[0]?.unit || '' }}
+              {{ modalAxis.primary || '' }}
             </text>
+
+            <!-- Right Y-axis labels for secondary unit -->
+            <template v-if="modalAxis.secondary">
+              <text
+                v-for="(value, index) in [0, 0.25, 0.5, 0.75, 1]"
+                :key="`right-${index}`"
+                x="790"
+                :y="360 - (value * 320) + 5"
+                class="axis-label"
+                text-anchor="start"
+              >
+                {{ (modalAxis.secondaryMax * value).toFixed(1) }}
+              </text>
+              <text x="780" y="200" class="y-axis-label" transform="rotate(90, 780, 200)">
+                {{ modalAxis.secondary }}
+              </text>
+            </template>
           </svg>
+          <div class="series-legend" v-if="selectedGraphData.length">
+            <div class="legend-item" v-for="series in selectedGraphData" :key="series.label">
+              <span class="legend-swatch" :style="{ background: series.color }"></span>
+              <span class="legend-label">{{ series.label }} ({{ series.unit }})</span>
+            </div>
+          </div>
         </div>
         <div v-else class="no-data">
           <p>No time series data available</p>
@@ -2919,7 +3275,21 @@ const getCapacityStatusClass = (status: string) => {
         <button @click="closeCsvModal" class="modal-close-btn">×</button>
       </div>
       <div class="modal-body">
-        <pre class="csv-preview">{{ csvModalContent }}</pre>
+        <div v-if="csvPreviewRows.length" class="csv-table-wrapper">
+          <table class="csv-table">
+            <thead>
+              <tr>
+                <th v-for="(cell, index) in csvPreviewRows[0]" :key="`head-${index}`">{{ cell }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, rowIndex) in csvPreviewRows.slice(1)" :key="`row-${rowIndex}`">
+                <td v-for="(cell, cellIndex) in row" :key="`cell-${rowIndex}-${cellIndex}`">{{ cell }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="csv-empty">No data to preview.</div>
       </div>
     </div>
   </div>
@@ -3146,6 +3516,52 @@ const getCapacityStatusClass = (status: string) => {
 
 .checkbox-label {
   font-size: 0.95rem;
+}
+
+.checkbox-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-weight: 600;
+  margin-top: 0.35rem;
+}
+
+.date-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+}
+
+.date-preset-button {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(17, 26, 46, 0.7);
+  color: var(--text);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.1s ease;
+}
+
+.date-preset-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.date-preset-button.active {
+  background: linear-gradient(120deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: #041019;
+  border-color: transparent;
+  box-shadow: 0 10px 24px rgba(6, 182, 212, 0.22);
+}
+
+.date-preset-button.clear {
+  background: transparent;
+  color: var(--muted);
 }
 
 .date-range-container {
@@ -3692,17 +4108,6 @@ const getCapacityStatusClass = (status: string) => {
   padding: 1rem 1.25rem 1.25rem;
 }
 
-.csv-preview {
-  white-space: pre-wrap;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1rem;
-  font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  font-size: 0.9rem;
-  color: var(--text);
-}
-
 .graph-container {
   background: #0e1726;
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -3720,6 +4125,59 @@ const getCapacityStatusClass = (status: string) => {
 .axis-label {
   fill: var(--muted);
   font-size: 0.75rem;
+}
+
+.series-legend {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid #0b1220;
+}
+
+.csv-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.csv-table-wrapper {
+  max-height: 60vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.csv-table th,
+.csv-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.csv-table thead {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.csv-empty {
+  color: var(--muted);
 }
 
 .y-axis-label {
