@@ -954,6 +954,16 @@ const capacityDataB = ref([
   { id: 6, resource: 'Bandwidth', rack: 'RACK-L06', grid: 'L', used: 720, total: 1000, unit: 'Mbps', utilization: 72, status: 'good', maxPower: 1000 }
 ])
 
+// DFM2 - Cooling data
+const coolingDataB = ref([
+  { id: 1, resource: 'Cooling Unit 1', rack: 'RACK-G01', grid: 'G', used: 45, total: 60, unit: 'kW', utilization: 75, status: 'good', maxPower: 60 },
+  { id: 2, resource: 'Cooling Unit 2', rack: 'RACK-H02', grid: 'H', used: 38, total: 55, unit: 'kW', utilization: 69, status: 'good', maxPower: 55 },
+  { id: 3, resource: 'Cooling Unit 3', rack: 'RACK-I03', grid: 'I', used: 52, total: 70, unit: 'kW', utilization: 74, status: 'warning', maxPower: 70 },
+  { id: 4, resource: 'Cooling Unit 4', rack: 'RACK-J04', grid: 'J', used: 42, total: 60, unit: 'kW', utilization: 70, status: 'good', maxPower: 60 },
+  { id: 5, resource: 'Cooling Unit 5', rack: 'RACK-K05', grid: 'K', used: 48, total: 65, unit: 'kW', utilization: 74, status: 'good', maxPower: 65 },
+  { id: 6, resource: 'Cooling Unit 6', rack: 'RACK-L06', grid: 'L', used: 40, total: 58, unit: 'kW', utilization: 69, status: 'good', maxPower: 58 }
+])
+
 // Site-level data for Estate Level view
 const siteThermalData = ref([
   { id: 1, site: 'Data Center 1', avgTemp: 22.3, minTemp: 20.1, maxTemp: 24.8, humidity: 45, outletTemp: 24.2, status: 'optimal', compliance: 'optimal' },
@@ -1320,7 +1330,7 @@ const getSelectedTimeline = () => {
 
 const getDisplayedTableData = (tabValue = activeTab.value) => {
   const level = selectedAggregateLevel.value
-  const byLevel = <T>(estate: T[], site: T[], room: T[]) => {
+  const byLevel = <T>(estate: T[], site: T[], room: T[]): T[] => {
     if (level === 'Estate Level') return estate
     if (level === 'Site Level') return site
     return room
@@ -1328,11 +1338,11 @@ const getDisplayedTableData = (tabValue = activeTab.value) => {
   
   switch (tabValue) {
     case 'thermal':
-      return byLevel(siteThermalData.value, roomThermalData.value, thermalData.value)
+      return byLevel(siteThermalData.value as any, roomThermalData.value as any, thermalData.value)
     case 'power':
-      return byLevel(sitePowerData.value, roomPowerData.value, powerData.value)
+      return byLevel(sitePowerData.value as any, roomPowerData.value as any, powerData.value)
     case 'capacity':
-      return byLevel(siteCapacityData.value, roomCapacityData.value, capacityData.value)
+      return byLevel(siteCapacityData.value as any, roomCapacityData.value as any, capacityData.value)
     default:
       return []
   }
