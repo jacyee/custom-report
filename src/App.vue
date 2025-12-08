@@ -1457,6 +1457,334 @@ const buildTimeSeriesCsv = (tabValue = activeTab.value, isB = false) => {
   return { csv, range: `${start} to ${end}` }
 }
 
+const buildTableViewCsv = (tabValue = activeTab.value, isB = false) => {
+  const normalize = (value: unknown) => (value === undefined || value === null ? '' : String(value))
+  const rows: string[][] = []
+  const pushRow = (cells: Array<string | number>) => rows.push(cells.map(normalize))
+  const graphPlaceholder = '-'
+
+  if (tabValue === 'thermal') {
+    if (isB) {
+      const headers = ['Rack Label', 'Grid', 'Temperature Range', 'Avg Temp', 'Humidity', 'Outlet T', 'Compliance', 'Graph']
+      thermalDataB.value.forEach(thermal => {
+        pushRow([
+          thermal.rackLabel,
+          thermal.grid,
+          `${thermal.minTemp}°C - ${thermal.maxTemp}°C`,
+          `${thermal.avgTemp}°C`,
+          `${thermal.humidity}%`,
+          `${thermal.outletT}°C`,
+          thermal.status,
+          graphPlaceholder
+        ])
+      })
+      pushRow([
+        'Subtotal',
+        '-',
+        `${thermalTableSubtotalB.value.minTemp.toFixed(1)}°C - ${thermalTableSubtotalB.value.maxTemp.toFixed(1)}°C`,
+        `${thermalTableSubtotalB.value.avgTemp.toFixed(1)}°C`,
+        `${thermalTableSubtotalB.value.humidity.toFixed(1)}%`,
+        `${thermalTableSubtotalB.value.outlet.toFixed(1)}°C`,
+        '-',
+        graphPlaceholder
+      ])
+      return [headers, ...rows].map(row => row.join(',')).join('\n')
+    }
+
+    const level = selectedAggregateLevel.value
+    const primaryHeader = level === 'Estate Level' ? 'Site' : level === 'Site Level' ? 'Room' : 'Rack Label'
+    const secondaryHeader = level === 'Room Level' ? 'Grid' : '-'
+    const columns = showThermalColumns.value
+    const headers = [primaryHeader, secondaryHeader]
+    if (columns.temperature) {
+      headers.push('Temperature Range', 'Avg Temp')
+    }
+    if (columns.humidity) headers.push('Humidity')
+    if (columns.dewPoint) headers.push('Dew Point')
+    if (columns.outletT) headers.push('Outlet T')
+    if (columns.compliance) headers.push('Compliance')
+    headers.push('Graph')
+
+    const buildRow = (label: string, grid: string, values: { min: number; max: number; avg: number; humidity?: number; outlet?: number; status?: string }) => {
+      const row: (string | number)[] = [label, grid]
+      if (columns.temperature) {
+        row.push(`${values.min}°C - ${values.max}°C`, `${values.avg}°C`)
+      }
+      if (columns.humidity) row.push(values.humidity !== undefined ? `${values.humidity}%` : '')
+      if (columns.dewPoint) row.push('N/A')
+      if (columns.outletT) row.push(values.outlet !== undefined ? `${values.outlet}°C` : '')
+      if (columns.compliance) row.push(values.status ?? '')
+      row.push(graphPlaceholder)
+      pushRow(row)
+    }
+
+    if (level === 'Estate Level') {
+      siteThermalData.value.forEach(site => {
+        buildRow(site.site, '-', {
+          min: site.minTemp,
+          max: site.maxTemp,
+          avg: site.avgTemp,
+          humidity: site.humidity,
+          outlet: site.outletTemp,
+          status: site.status
+        })
+      })
+    } else if (level === 'Site Level') {
+      roomThermalData.value.forEach(room => {
+        buildRow(room.room, '-', {
+          min: room.minTemp,
+          max: room.maxTemp,
+          avg: room.avgTemp,
+          humidity: room.humidity,
+          outlet: room.outletTemp,
+          status: room.status
+        })
+      })
+    } else {
+      thermalData.value.forEach(thermal => {
+        buildRow(thermal.rackLabel, thermal.grid, {
+          min: thermal.minTemp,
+          max: thermal.maxTemp,
+          avg: thermal.avgTemp,
+          humidity: thermal.humidity,
+          outlet: thermal.outletT,
+          status: thermal.status
+        })
+      })
+    }
+
+    const subtotal = thermalTableSubtotal.value
+    buildRow('Subtotal', '-', {
+      min: Number(subtotal.minTemp.toFixed(1)),
+      max: Number(subtotal.maxTemp.toFixed(1)),
+      avg: Number(subtotal.avgTemp.toFixed(1)),
+      humidity: Number(subtotal.humidity.toFixed(1)),
+      outlet: Number(subtotal.outlet.toFixed(1)),
+      status: '-'
+    })
+
+    return [headers, ...rows].map(row => row.join(',')).join('\n')
+  }
+
+  if (tabValue === 'power') {
+    if (isB) {
+      const headers = [
+        isPowerItemType.value ? 'PDU' : 'Rack Label',
+        'Grid',
+        'Voltage',
+        'Current',
+        'Power',
+        'Load',
+        'Graph'
+      ]
+      powerDataB.value.forEach(power => {
+        pushRow([
+          powerRowLabelB(power),
+          power.grid,
+          `${power.voltage}V`,
+          `${power.current}A`,
+          `${power.power}kW`,
+          `${power.load}%`,
+          graphPlaceholder
+        ])
+      })
+      pushRow([
+        'Subtotal',
+        '-',
+        `${powerTableSubtotalB.value.voltage.toFixed(1)}V`,
+        `${powerTableSubtotalB.value.current.toFixed(1)}A`,
+        powerTableSubtotalB.value.power,
+        powerTableSubtotalB.value.load,
+        graphPlaceholder
+      ])
+      return [headers, ...rows].map(row => row.join(',')).join('\n')
+    }
+
+    const level = selectedAggregateLevel.value
+    const primaryHeader = powerPrimaryHeader.value
+    const secondaryHeader = level === 'Room Level' ? 'Grid' : '-'
+    const columns = showPowerColumns.value
+    const headers = [primaryHeader, secondaryHeader]
+    if (columns.voltage) headers.push('Voltage')
+    if (columns.amps) headers.push('Current')
+    if (columns.power) headers.push(level === 'Room Level' ? 'Power' : 'Total Power')
+    if (columns.energy) headers.push('Energy')
+    headers.push('Graph')
+
+    const buildRow = (label: string, grid: string, values: { voltage?: number; current?: number; power: number; energy?: number }) => {
+      const row: (string | number)[] = [label, grid]
+      if (columns.voltage) row.push(values.voltage !== undefined ? `${values.voltage}V` : '')
+      if (columns.amps) row.push(values.current !== undefined ? `${values.current}A` : '')
+      if (columns.power) row.push(`${values.power}kW`)
+      if (columns.energy) row.push(values.energy !== undefined ? formatKwh(values.energy) : '')
+      row.push(graphPlaceholder)
+      pushRow(row)
+    }
+
+    if (level === 'Estate Level') {
+      sitePowerData.value.forEach(site => {
+        buildRow(site.site, '-', {
+          voltage: site.voltage,
+          current: site.current,
+          power: site.totalPower,
+          energy: site.energy
+        })
+      })
+    } else if (level === 'Site Level') {
+      roomPowerData.value.forEach(room => {
+        buildRow(room.room, '-', {
+          voltage: room.voltage,
+          current: room.current,
+          power: room.totalPower,
+          energy: room.energy
+        })
+      })
+    } else {
+      powerData.value.forEach(power => {
+        buildRow(powerRowLabel(power), power.grid, {
+          voltage: power.voltage,
+          current: power.current,
+          power: power.power,
+          energy: power.energy
+        })
+      })
+    }
+
+    const subtotal = powerTableSubtotal.value
+    const subtotalRow: (string | number)[] = ['Subtotal', '-']
+    if (columns.voltage) subtotalRow.push(`${subtotal.voltage.toFixed(1)}V`)
+    if (columns.amps) subtotalRow.push(`${subtotal.current.toFixed(1)}A`)
+    if (columns.power) subtotalRow.push(subtotal.power)
+    if (columns.energy) subtotalRow.push(subtotal.energy)
+    subtotalRow.push(graphPlaceholder)
+    pushRow(subtotalRow)
+
+    return [headers, ...rows].map(row => row.join(',')).join('\n')
+  }
+
+  if (tabValue === 'capacity') {
+    if (isB) {
+      const headers = [
+        isPowerItemType.value ? 'PDU' : 'Rack Label',
+        'Grid',
+        'Measured (kW)',
+        'Allocated (kW)',
+        'Reserved (kW)',
+        'Subtotal (kW)',
+        'Space',
+        'Graph'
+      ]
+      capacityDataB.value.forEach(capacity => {
+        pushRow([
+          capacityRowLabelB(capacity),
+          capacity.grid,
+          formatKw(capacity.used),
+          formatKw(Math.max((Number(capacity.used) || 0) * 0.9, 0)),
+          formatKw((Number(capacity.total) || 0) - (Number(capacity.used) || 0)),
+          formatKw(capacity.total),
+          `${capacity.utilization}%`,
+          graphPlaceholder
+        ])
+      })
+      pushRow([
+        'Subtotal',
+        '-',
+        formatKw(capacityTableSubtotalB.value.measured),
+        formatKw(capacityTableSubtotalB.value.allocated),
+        formatKw(capacityTableSubtotalB.value.reserved),
+        formatKw(capacityTableSubtotalB.value.subtotal),
+        `${capacityTableSubtotalB.value.utilization.toFixed(1)}%`,
+        graphPlaceholder
+      ])
+      return [headers, ...rows].map(row => row.join(',')).join('\n')
+    }
+
+    const level = selectedAggregateLevel.value
+    const primaryHeader = capacityPrimaryHeader.value
+    const secondaryHeader = level === 'Room Level' ? 'Grid' : '-'
+    const columns = showCapacityColumns.value
+    const headers = [primaryHeader, secondaryHeader]
+    if (columns.measured) headers.push(level === 'Room Level' ? 'Measured (kW)' : '-')
+    if (columns.allocated) headers.push(level === 'Room Level' ? 'Allocated (kW)' : '-')
+    if (columns.reserved) headers.push(level === 'Room Level' ? 'Reserved (kW)' : '-')
+    if (level === 'Room Level') headers.push('Subtotal (kW)')
+    if (columns.space) headers.push(level === 'Room Level' ? 'Space' : '-')
+    headers.push('Graph')
+
+    const buildRow = (label: string, grid: string, values: { measured?: number; allocated?: number; reserved?: number; subtotal?: number; utilization?: number }) => {
+      const row: (string | number)[] = [label, grid]
+      if (columns.measured) row.push(level === 'Room Level' ? formatKw(values.measured ?? 0) : `${values.measured ?? 0} racks`)
+      if (columns.allocated) row.push(level === 'Room Level' ? formatKw(values.allocated ?? 0) : `${values.allocated ?? 0} racks`)
+      if (columns.reserved) row.push(level === 'Room Level' ? formatKw(values.reserved ?? 0) : `${values.reserved ?? 0} racks`)
+      if (level === 'Room Level') row.push(formatKw(values.subtotal ?? 0))
+      if (columns.space) row.push(values.utilization !== undefined ? `${values.utilization}%` : '')
+      row.push(graphPlaceholder)
+      pushRow(row)
+    }
+
+    if (level === 'Estate Level') {
+      siteCapacityData.value.forEach(site => {
+        buildRow(site.site, '-', {
+          measured: site.totalRacks,
+          allocated: site.usedRacks,
+          reserved: site.availableRacks,
+          subtotal: site.totalRacks,
+          utilization: site.utilization
+        })
+      })
+    } else if (level === 'Site Level') {
+      roomCapacityData.value.forEach(room => {
+        buildRow(room.room, '-', {
+          measured: room.totalRacks,
+          allocated: room.usedRacks,
+          reserved: room.availableRacks,
+          subtotal: room.totalRacks,
+          utilization: room.utilization
+        })
+      })
+    } else {
+      capacityData.value.forEach(capacity => {
+        buildRow(capacityRowLabel(capacity), capacity.grid, {
+          measured: Number(capacity.used) || 0,
+          allocated: Math.max((Number(capacity.used) || 0) * 0.9, 0),
+          reserved: Math.max((Number(capacity.total) || 0) - (Number(capacity.used) || 0), 0),
+          subtotal: Number(capacity.total) || 0,
+          utilization: capacity.utilization
+        })
+      })
+    }
+
+    const subtotal = capacityTableSubtotal.value
+    buildRow('Subtotal', '-', {
+      measured: subtotal.measured,
+      allocated: subtotal.allocated,
+      reserved: subtotal.reserved,
+      subtotal: subtotal.subtotal,
+      utilization: subtotal.utilization ? Number(subtotal.utilization.toFixed(1)) : 0
+    })
+
+    return [headers, ...rows].map(row => row.join(',')).join('\n')
+  }
+
+  if (isB && tabValue === 'cooling') {
+    const headers = ['Resource', 'Used', 'Total', 'Unit', 'Utilization', 'Status', 'Graph']
+    coolingDataB.value.forEach(cooling => {
+      pushRow([
+        cooling.resource,
+        cooling.used,
+        cooling.total,
+        cooling.unit,
+        `${cooling.utilization}%`,
+        cooling.status,
+        graphPlaceholder
+      ])
+    })
+    return [headers, ...rows].map(row => row.join(',')).join('\n')
+  }
+
+  return ''
+}
+
 const getCurrentTableData = () => getDisplayedTableData()
 
 const exportToCSV = () => {
@@ -1464,6 +1792,16 @@ const exportToCSV = () => {
   if (!csv) return
   
   csvModalTitle.value = `${activeTab.value.toUpperCase()} Time Series (${range})`
+  csvModalContent.value = csv
+  showCsvModal.value = true
+  exportDropdownOpen.value = false
+}
+
+const exportTableViewCsv = () => {
+  const csv = buildTableViewCsv(activeTab.value, false)
+  if (!csv) return
+
+  csvModalTitle.value = `${activeTab.value.toUpperCase()} Table View`
   csvModalContent.value = csv
   showCsvModal.value = true
   exportDropdownOpen.value = false
@@ -1552,6 +1890,16 @@ const exportToCSVB = () => {
   if (!csv) return
   
   csvModalTitle.value = `CAGE B ${activeTabB.value.toUpperCase()} Time Series (${range})`
+  csvModalContent.value = csv
+  showCsvModal.value = true
+  exportDropdownOpenB.value = false
+}
+
+const exportTableViewCsvB = () => {
+  const csv = buildTableViewCsv(activeTabB.value, true)
+  if (!csv) return
+
+  csvModalTitle.value = `CAGE B ${activeTabB.value.toUpperCase()} Table View`
   csvModalContent.value = csv
   showCsvModal.value = true
   exportDropdownOpenB.value = false
@@ -2374,7 +2722,7 @@ const getCapacityStatusClass = (status: string) => {
                 <div v-if="chartExportDropdownOpen" class="export-menu">
                   <button @click="exportChartToCSV" class="export-option">
                     <span class="export-option-icon">📄</span>
-                    Export to CSV
+                    Export to CSV  (time series for all items)
                   </button>
                   <button @click="exportChartToExcel" class="export-option">
                     <span class="export-option-icon">📊</span>
@@ -2807,13 +3155,17 @@ const getCapacityStatusClass = (status: string) => {
           :class="{ 'active': exportDropdownOpen }"
         >
           <span class="export-icon">📊</span>
-          Export Data (time series for all racks)
+          Export Data
           <span class="export-arrow">▼</span>
         </button>
         <div v-if="exportDropdownOpen" class="export-menu">
+          <button @click="exportTableViewCsv" class="export-option">
+            <span class="export-option-icon">🗒️</span>
+            Export Table View CSV (item summary)
+          </button>
           <button @click="exportToCSV" class="export-option">
             <span class="export-option-icon">📄</span>
-            Export to CSV
+            Export to CSV (time series for all items)
           </button>
           <button @click="exportToExcel" class="export-option">
             <span class="export-option-icon">📊</span>
@@ -3146,9 +3498,13 @@ const getCapacityStatusClass = (status: string) => {
           <span class="export-arrow">▼</span>
         </button>
         <div v-if="exportDropdownOpenB" class="export-menu">
+          <button @click="exportTableViewCsvB" class="export-option">
+            <span class="export-option-icon">🗒️</span>
+            Export Table View CSV (item summary)
+          </button>
           <button @click="exportToCSVB" class="export-option">
             <span class="export-option-icon">📄</span>
-            Export to CSV
+            Export to CSV (time series for all items)
           </button>
           <button @click="exportToExcelB" class="export-option">
             <span class="export-option-icon">📊</span>
