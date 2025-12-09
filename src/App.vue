@@ -2221,11 +2221,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.customer }"
               >
-                {{ getDropdownLabel('customer', selectedCustomer, ['KPMG', 'Tesco', 'BT', 'ServiceNow', 'Citi Bank', 'Microsoft']) }}
+                {{ getDropdownLabel('customer', selectedCustomer, ['Customer1', 'Customer2','Customer3']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.customer" class="dropdown-content">
-                <label v-for="option in ['KPMG', 'Tesco', 'BT', 'ServiceNow', 'Citi Bank', 'Microsoft']" :key="option" class="checkbox-item">
+                <label v-for="option in ['Customer1', 'Customer2','Customer3']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
@@ -2268,11 +2268,11 @@ const getCapacityStatusClass = (status: string) => {
                 class="dropdown-button"
                 :class="{ 'active': dropdownOpen.site }"
               >
-                {{ getDropdownLabel('site', selectedSite, ['All Sites', 'TH North', 'TH South', 'TH East']) }}
+                {{ getDropdownLabel('site', selectedSite, ['All Sites', 'Site 1', 'Site 2', 'Site 3']) }}
                 <span class="dropdown-arrow">▼</span>
               </button>
               <div v-if="dropdownOpen.site" class="dropdown-content">
-                <label v-for="option in ['All Sites', 'TH North', 'TH South', 'TH East']" :key="option" class="checkbox-item">
+                <label v-for="option in ['All Sites', 'Site 1', 'Site 2', 'Site 3']" :key="option" class="checkbox-item">
                   <input 
                     type="checkbox" 
                     :value="option" 
