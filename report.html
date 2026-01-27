@@ -393,7 +393,9 @@
       // disable dropdown containers
       [
         { id: 'room-dropdown', label: 'Select rooms ▾' },
-        { id: 'cage-dropdown', label: 'Select rack groups ▾' }
+        { id: 'cage-dropdown', label: 'Select rack groups ▾' },
+        { id: 'thermalDatatype-dropdown', label: 'Select thermal datatypes ▾' },
+        { id: 'capacityDatatype-dropdown', label: 'Select capacity datatypes ▾' }
       ].forEach(({ id, label }) => {
         const details = document.getElementById(id);
         const summary = details?.querySelector('summary');
