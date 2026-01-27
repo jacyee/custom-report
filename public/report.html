@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Power BI Report</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #0d1b2a, #1b263b);
+      color: #e0e6ed;
+      min-height: 100vh;
+      padding: 24px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 16px;
+    }
+    .panel {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.25);
+    }
+    .panel h1 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      letter-spacing: 0.3px;
+    }
+    form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      color: #b8c6d8;
+    }
+    input, select, button {
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+      color: #e0e6ed;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+    .checkbox-group {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      justify-items: stretch;
+    }
+    .checkbox-chip {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      transition: background 120ms ease, border 120ms ease;
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-align: left;
+    }
+    .checkbox-chip input {
+      accent-color: #5b9bff;
+      width: 16px;
+      height: 16px;
+      margin: 0;
+    }
+    .checkbox-chip:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.12);
+    }
+    .multi-dropdown { position: relative; width: 100%; }
+    .multi-dropdown summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+      color: #e0e6ed;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 44px;
+    }
+    .multi-dropdown summary::after {
+      content: '▾';
+      font-size: 12px;
+      color: #b8c6d8;
+    }
+    .multi-dropdown summary::-webkit-details-marker { display: none; }
+    .multi-dropdown[open] summary {
+      border-color: rgba(127,209,255,0.6);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    }
+    .multi-dropdown .dropdown-panel {
+      margin-top: 6px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      background: rgba(7,12,22,0.95);
+      padding: 10px;
+      box-shadow: 0 14px 28px rgba(0,0,0,0.32);
+    }
+    input:focus, select:focus, button:focus-visible {
+      outline: 2px solid #7fd1ff;
+      outline-offset: 1px;
+    }
+    button {
+      cursor: pointer;
+      font-weight: 600;
+      background: linear-gradient(135deg, #1f8ef1, #5b9bff);
+      border: none;
+      color: white;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(0,0,0,0.25); }
+    .frame {
+      width: min(1200px, 100%);
+      aspect-ratio: 16 / 9;
+      background: #0b1324;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>Report Filters</h1>
+    <form id="filterForm">
+      <label>
+        Contract Reference
+        <input id="field" name="field" placeholder="ContractReference eq 'ABC123'" />
+      </label>
+      <label>
+        Custom Reference 1
+        <input id="custom1" name="custom1" placeholder="CustomReference eq 'REF-01'" />
+      </label>
+      <label>
+        Custom Reference 2
+        <input id="custom2" name="custom2" placeholder="CustomReference2 eq 'REF-02'" />
+      </label>
+      <label>
+        Customer
+        <select id="customer" name="customer">
+          <option value="">All Customers</option>
+          <option>Customer 1</option>
+          <option>Customer 2</option>
+          <option>Customer 3</option>
+          <option>Customer 4</option>
+          <option>Customer 5</option>
+        </select>
+      </label>
+      <label>
+        Level
+        <select id="level" name="level">
+          <option>Site level</option>
+          <option>Room level</option>
+        </select>
+      </label>
+      <label>
+        Site
+        <select id="site" name="site">
+          <option value="">All Sites</option>
+          <option>Site 1</option>
+          <option>Site 2</option>
+          <option>Site 3</option>
+          <option>Site 4</option>
+          <option>Site 5</option>
+        </select>
+      </label>
+      <label>
+        Room (multi-select)
+        <details class="multi-dropdown" id="room-dropdown">
+          <summary>Select rooms ▾</summary>
+          <div class="dropdown-panel">
+            <div class="checkbox-group">
+              <label class="checkbox-chip"><input type="checkbox" data-group="room" value="Room 1" />Room 1</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="room" value="Room 2" />Room 2</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="room" value="Room 3" />Room 3</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="room" value="Room 4" />Room 4</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="room" value="Room 5" />Room 5</label>
+            </div>
+          </div>
+        </details>
+      </label>
+      <label>
+        Cage / Rack Group (multi-select)
+        <details class="multi-dropdown" id="cage-dropdown">
+          <summary>Select rack groups ▾</summary>
+          <div class="dropdown-panel">
+            <div class="checkbox-group">
+              <label class="checkbox-chip"><input type="checkbox" data-group="cage" value="DFM1" />DFM1</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="cage" value="DFM2" />DFM2</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="cage" value="DFM3" />DFM3</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="cage" value="Rack Group 1" />Rack Group 1</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="cage" value="Rack Group 2" />Rack Group 2</label>
+            </div>
+          </div>
+        </details>
+      </label>
+      <label>
+        Item Type
+        <select id="itemType" name="itemType">
+          <option value="">All Item Types</option>
+          <option>Rack</option>
+          <option>Ambient Orb</option>
+          <option>Cooling</option>
+          <option>Power</option>
+        </select>
+      </label>
+      <label>
+        Item Label
+        <input id="itemLabel" name="itemLabel" placeholder="e.g. DFM D10 D07" />
+      </label>
+      <label>
+        Summary Datatype (up to 5)
+        <details class="multi-dropdown" id="summaryDatatype-dropdown">
+          <summary>Select summary datatypes ▾</summary>
+          <div class="dropdown-panel">
+            <div class="checkbox-group">
+              <label class="checkbox-chip"><input type="checkbox" data-group="summaryDatatype" value="Power" />Power</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="summaryDatatype" value="Temperature" />Temperature</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="summaryDatatype" value="Humidity" />Humidity</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="summaryDatatype" value="Voltage" />Voltage</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="summaryDatatype" value="Amps" />Amps</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="summaryDatatype" value="Energy" />Energy</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="summaryDatatype" value="Compliance" />Compliance</label>
+            </div>
+          </div>
+        </details>
+      </label>
+      <label>
+        Thermal Datatype (up to 5)
+        <details class="multi-dropdown" id="thermalDatatype-dropdown">
+          <summary>Select thermal datatypes ▾</summary>
+          <div class="dropdown-panel">
+            <div class="checkbox-group">
+              <label class="checkbox-chip"><input type="checkbox" data-group="thermalDatatype" value="Temperature" />Temperature</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="thermalDatatype" value="Humidity" />Humidity</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="thermalDatatype" value="Outlet T" />Outlet T</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="thermalDatatype" value="Compliance" />Compliance</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="thermalDatatype" value="Dew Point" />Dew Point</label>
+            </div>
+          </div>
+        </details>
+      </label>
+      <label>
+        Power Datatype (up to 5)
+        <details class="multi-dropdown" id="powerDatatype-dropdown">
+          <summary>Select power datatypes ▾</summary>
+          <div class="dropdown-panel">
+            <div class="checkbox-group">
+              <label class="checkbox-chip"><input type="checkbox" data-group="powerDatatype" value="Voltage" />Voltage</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="powerDatatype" value="Amps" />Amps</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="powerDatatype" value="Power" />Power</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="powerDatatype" value="Energy" />Energy</label>
+            </div>
+          </div>
+        </details>
+      </label>
+      <label>
+        Capacity Datatype (up to 5)
+        <details class="multi-dropdown" id="capacityDatatype-dropdown">
+          <summary>Select capacity datatypes ▾</summary>
+          <div class="dropdown-panel">
+            <div class="checkbox-group">
+              <label class="checkbox-chip"><input type="checkbox" data-group="capacityDatatype" value="Measured" />Measured</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="capacityDatatype" value="Allocated" />Allocated</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="capacityDatatype" value="Reserved" />Reserved</label>
+              <label class="checkbox-chip"><input type="checkbox" data-group="capacityDatatype" value="Space" />Space</label>
+            </div>
+          </div>
+        </details>
+      </label>
+      <label>
+        Data Resolution
+        <select id="dataResolution" name="dataResolution">
+          <option value="">All</option>
+          <option>5min</option>
+          <option>15min</option>
+          <option>30min</option>
+          <option>Hourly</option>
+          <option>Daily</option>
+        </select>
+      </label>
+      <label>
+        Date Range
+        <div style="display:flex; gap:8px;">
+          <input id="dateStart" name="dateStart" type="date" />
+          <input id="dateEnd" name="dateEnd" type="date" />
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+          <button type="button" class="pill" data-range="yesterday">Yesterday</button>
+          <button type="button" class="pill" data-range="lastWeek">Last week</button>
+          <button type="button" class="pill" data-range="lastMonth">Last month</button>
+        </div>
+      </label>
+      <button type="submit">Apply Filters</button>
+    </form>
+  </div>
+
+  <div class="frame">
+    <iframe
+      id="reportFrame"
+      title="Embedded Power BI report"
+      allowfullscreen
+      src="https://app.powerbi.com/reportEmbed?reportId=79b62d48-6bec-4b5c-91a0-9e052395928b&autoAuth=true&ctid=0fadb027-6429-41ef-8483-b513e74ad1bf">
+    </iframe>
+  </div>
+
+  <script>
+    const baseUrl = 'https://app.powerbi.com/reportEmbed?reportId=79b62d48-6bec-4b5c-91a0-9e052395928b&autoAuth=true&ctid=0fadb027-6429-41ef-8483-b513e74ad1bf';
+    const form = document.getElementById('filterForm');
+    const frame = document.getElementById('reportFrame');
+
+    const encodeFilter = (expr) => encodeURIComponent(expr.trim());
+    const multiselectValues = (groupName) =>
+      Array.from(document.querySelectorAll(`input[data-group="${groupName}"]:checked`))
+        .map(opt => (opt.value || '').trim())
+        .filter(Boolean);
+    const sanitize = (val) => val.replace(/'/g, "''");
+    const buildOr = (column, values) =>
+      values.length
+        ? `(${values.map(v => `${column} eq '${sanitize(v)}'`).join(' or ')})`
+        : '';
+    const setDateRange = (preset) => {
+      const startInput = document.getElementById('dateStart');
+      const endInput = document.getElementById('dateEnd');
+      const today = new Date();
+      const end = new Date(today);
+      end.setHours(0,0,0,0);
+      const start = new Date(end);
+      if (preset === 'yesterday') {
+        start.setDate(end.getDate() - 1);
+        end.setDate(end.getDate() - 1);
+      } else if (preset === 'lastWeek') {
+        start.setDate(end.getDate() - 6);
+      } else if (preset === 'lastMonth') {
+        start.setMonth(end.getMonth() - 1);
+      } else {
+        return;
+      }
+      const toVal = (d) => d.toISOString().slice(0,10);
+      startInput.value = toVal(start);
+      endInput.value = toVal(end);
+    };
+
+    document.querySelectorAll('button.pill[data-range]').forEach(btn => {
+      btn.addEventListener('click', () => setDateRange(btn.dataset.range));
+    });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const field = (document.getElementById('field').value || '').trim();
+      const custom1 = (document.getElementById('custom1').value || '').trim();
+      const custom2 = (document.getElementById('custom2').value || '').trim();
+      const customer = (document.getElementById('customer').value || '').trim();
+      const level = (document.getElementById('level').value || '').trim();
+      const site = (document.getElementById('site').value || '').trim();
+      const rooms = multiselectValues('room');
+      const cages = multiselectValues('cage');
+      const itemType = (document.getElementById('itemType').value || '').trim();
+      const itemLabel = (document.getElementById('itemLabel').value || '').trim();
+      const summaryDatatype = multiselectValues('summaryDatatype');
+      const thermalDatatype = multiselectValues('thermalDatatype');
+      const powerDatatype = multiselectValues('powerDatatype');
+      const capacityDatatype = multiselectValues('capacityDatatype');
+      const dataResolution = (document.getElementById('dataResolution').value || '').trim();
+      const dateStart = (document.getElementById('dateStart').value || '').trim();
+      const dateEnd = (document.getElementById('dateEnd').value || '').trim();
+
+      const filters = [];
+      if (field) filters.push(field);
+      if (custom1) filters.push(`CustomReference eq '${sanitize(custom1)}'`);
+      if (custom2) filters.push(`CustomReference2 eq '${sanitize(custom2)}'`);
+      if (customer) filters.push(`Customer eq '${sanitize(customer)}'`);
+      if (level) filters.push(`Level eq '${sanitize(level)}'`);
+      if (site) filters.push(`Site eq '${sanitize(site)}'`);
+      if (rooms.length) {
+        const roomExpr = buildOr('Room', rooms);
+        if (roomExpr) filters.push(roomExpr);
+      }
+      if (cages.length) {
+        const cageExpr = buildOr('Cage', cages);
+        if (cageExpr) filters.push(cageExpr);
+      }
+      if (itemType) filters.push(`ItemType eq '${sanitize(itemType)}'`);
+      if (itemLabel) filters.push(`ItemLabel eq '${sanitize(itemLabel)}'`);
+      const summaryExpr = buildOr('SummaryDatatype', summaryDatatype.slice(0, 5));
+      if (summaryExpr) filters.push(summaryExpr);
+      const thermalExpr = buildOr('ThermalDatatype', thermalDatatype.slice(0, 5));
+      if (thermalExpr) filters.push(thermalExpr);
+      const powerExpr = buildOr('PowerDatatype', powerDatatype.slice(0, 5));
+      if (powerExpr) filters.push(powerExpr);
+      const capacityExpr = buildOr('CapacityDatatype', capacityDatatype.slice(0, 5));
+      if (capacityExpr) filters.push(capacityExpr);
+      if (dataResolution) filters.push(`DataResolution eq '${sanitize(dataResolution)}'`);
+      if (dateStart && dateEnd) {
+        filters.push(`Date ge ${dateStart} and Date le ${dateEnd}`);
+      } else if (dateStart) {
+        filters.push(`Date ge ${dateStart}`);
+      } else if (dateEnd) {
+        filters.push(`Date le ${dateEnd}`);
+      }
+
+      const url = filters.length
+        ? `${baseUrl}&filter=${encodeFilter(filters.join(' and '))}`
+        : baseUrl;
+
+      frame.src = url;
+    });
+  </script>
+</body>
+</html>
