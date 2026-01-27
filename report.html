@@ -66,6 +66,7 @@
     }
     .checkbox-chip {
       display: flex;
+      width: 100%;
       align-items: center;
       justify-content: flex-start;
       gap: 8px;
@@ -76,6 +77,7 @@
       border: 1px solid transparent;
       cursor: pointer;
       text-align: left;
+      align-self: stretch;
     }
     .checkbox-chip input {
       accent-color: #5b9bff;
@@ -86,6 +88,11 @@
     .checkbox-chip:hover {
       background: rgba(255,255,255,0.08);
       border-color: rgba(255,255,255,0.12);
+    }
+    .disabled-group {
+      opacity: 0.45;
+      pointer-events: none;
+      filter: grayscale(0.2);
     }
     .multi-dropdown { position: relative; width: 100%; }
     .multi-dropdown summary {
@@ -335,14 +342,15 @@
   </div>
 
   <script>
-    const baseUrl = 'https://app.powerbi.com/reportEmbed?reportId=79b62d48-6bec-4b5c-91a0-9e052395928b&autoAuth=true&ctid=0fadb027-6429-41ef-8483-b513e74ad1bf';
-    const form = document.getElementById('filterForm');
-    const frame = document.getElementById('reportFrame');
+  const baseUrl = 'https://app.powerbi.com/reportEmbed?reportId=79b62d48-6bec-4b5c-91a0-9e052395928b&autoAuth=true&ctid=0fadb027-6429-41ef-8483-b513e74ad1bf';
+  const form = document.getElementById('filterForm');
+  const frame = document.getElementById('reportFrame');
+  const levelSelect = document.getElementById('level');
 
-    const encodeFilter = (expr) => encodeURIComponent(expr.trim());
-    const multiselectValues = (groupName) =>
-      Array.from(document.querySelectorAll(`input[data-group="${groupName}"]:checked`))
-        .map(opt => (opt.value || '').trim())
+  const encodeFilter = (expr) => encodeURIComponent(expr.trim());
+  const multiselectValues = (groupName) =>
+    Array.from(document.querySelectorAll(`input[data-group="${groupName}"]:checked`))
+      .map(opt => (opt.value || '').trim())
         .filter(Boolean);
     const sanitize = (val) => val.replace(/'/g, "''");
     const buildOr = (column, values) =>
@@ -374,6 +382,33 @@
     document.querySelectorAll('button.pill[data-range]').forEach(btn => {
       btn.addEventListener('click', () => setDateRange(btn.dataset.range));
     });
+
+    const toggleRoomCage = () => {
+      const isSiteLevel = (levelSelect.value || '').toLowerCase() === 'site level';
+      // disable/enable checkboxes
+      document.querySelectorAll('[data-group="room"], [data-group="cage"]').forEach(input => {
+        input.disabled = isSiteLevel;
+        if (isSiteLevel) input.checked = false;
+      });
+      // disable dropdown containers
+      [
+        { id: 'room-dropdown', label: 'Select rooms ▾' },
+        { id: 'cage-dropdown', label: 'Select rack groups ▾' }
+      ].forEach(({ id, label }) => {
+        const details = document.getElementById(id);
+        const summary = details?.querySelector('summary');
+        if (isSiteLevel) {
+          details?.removeAttribute('open');
+          details?.classList.add('disabled-group');
+          if (summary) summary.textContent = `${label} (disabled for Site level)`;
+        } else {
+          details?.classList.remove('disabled-group');
+          if (summary) summary.textContent = label;
+        }
+      });
+    };
+    levelSelect.addEventListener('change', toggleRoomCage);
+    toggleRoomCage();
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
